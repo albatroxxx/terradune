@@ -10,7 +10,7 @@ Terradune turns initialized Terraform workspaces into a local plan review interf
 [![Go Reference](https://pkg.go.dev/badge/github.com/albatroxxx/terradune.svg)](https://pkg.go.dev/github.com/albatroxxx/terradune)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-![Terradune Plan review](docs/review/after-plan-desktop.png)
+![Terradune expanded Resource Map](docs/review/after-resource-map-expanded.png)
 
 ## Start Reviewing
 
@@ -38,23 +38,25 @@ Terradune never runs `terraform apply`. It runs `plan`, `show`, and `graph`; pla
 
 ## Three Views, One Plan
 
+### Resource Map
+
+The default view groups VPCs, subnets, route tables, gateways, and load balancers by their infrastructure roles. Resources can appear in more than one contextual placement here; those placements do not duplicate the Plan inventory.
+
+Pin a resource to keep its path highlighted, or use its details button. Solid green arrows follow the network path; dashed blue lines indicate direct associations. Connections route around card headers and remain visible when columns stack. Pins and paths stay within their workspace. The legend groups resource actions and connection styles.
+
+The **Expand view** control hides the header and filters to give the active map, plan, or graph more room. **Restore view** brings them back without clearing the current filters or pin. Escape closes details, then the legend, then a pinned path, then restores an expanded view.
+
 ### Plan
 
-The default view lists each managed resource once per workspace, including route associations and unfamiliar resource types. Destructive changes sort first. Filter by action, service, workspace, or search; enable **Changes only** to hide unchanged resources.
+The resource register lists each managed resource once per workspace, including route associations and unfamiliar resource types. Destructive changes sort first. Filter by action, service, workspace, or search; enable **Changes only** to hide unchanged resources.
 
 Open a resource to inspect its configuration, attached resources, and dependencies. Updated and replaced resources show before/after values. Terraform's unknown values remain marked as known after apply. Sensitive detail values are masked using Terraform's sensitivity metadata, including nested objects and lists.
 
-### Relationships
+### Graph
 
 Open the relationship action on a resource for its direct dependency neighborhood, or use the full graph. Resource identity includes the workspace, so identical addresses in separate environments remain distinct. Arrowheads point **from the dependent to its prerequisite**; ELK supplies the routed paths.
 
 Zoom and fit controls are available above the graph. Graph nodes can be focused and opened with Enter or Space. With the graph focused, arrow keys pan, `+`/`-` zoom, and `0` fits the graph.
-
-### Network
-
-The specialized network map groups VPCs, subnets, route tables, gateways, and load balancers by their infrastructure roles. Resources can appear in more than one contextual placement here; those placements do not duplicate the Plan inventory.
-
-Pin a resource to keep its path highlighted, or use its details button. Mouse double-click still opens details. Escape closes details first, then releases a pinned path.
 
 ## Coverage
 
@@ -94,7 +96,7 @@ Terraform plan / show / graph
              |
            server           localhost JSON endpoints and SSE snapshots
              |
-    Plan / Relationships / Network
+    Resource Map / Plan / Graph
 ```
 
 `internal/watch` observes Terraform source edits. The browser, fonts, logo, service glyphs, and ELK engine are embedded in the Go binary; the UI needs no CDN or JavaScript build step. The new review surface is separated into `assets/review.js` and `assets/review.css`.
@@ -133,7 +135,7 @@ Frontend behavior checks execute the real scripts against plan fixtures using Ja
 
 CI also runs `gosec`, `staticcheck`, `govulncheck`, and Semgrep. Passing local unit tests is not a substitute for those scans. See [the workflow](.github/workflows/ci.yml).
 
-Plan files may contain sensitive data. The details endpoint masks values marked sensitive by Terraform; unmarked secrets cannot be identified automatically. Display metadata and legacy network highlighting still need the additional hardening described in the review report. Keep Terradune on localhost and use synthetic plans when publishing screenshots.
+Plan files may contain sensitive data. The details endpoint masks values marked sensitive by Terraform; unmarked secrets cannot be identified automatically. Display metadata still needs the additional hardening described in the review report. Keep Terradune on localhost and use synthetic plans when publishing screenshots.
 
 ## Contributing
 

@@ -2,15 +2,16 @@
 
 ## Product Direction
 
-Terradune is a local review workspace for AWS Terraform plans. The first screen must answer: what changes, which resources are affected, and what those resources depend on? An inventory provides complete resource coverage; topology is an alternate lens, not the only way to find an asset.
+Terradune is a local review workspace for AWS Terraform plans. The first screen is Resource Map, followed by Plan and Graph. Together they answer: what changes, which resources are affected, and what those resources depend on? The inventory provides complete resource coverage independent of spatial placement.
 
 The core workflow is: choose workspaces, review action counts, narrow by service or search, inspect configuration, and follow dependencies. Every resource has one canonical inventory entry identified by workspace plus Terraform address. Specialized network views may show a resource in context, but must not inflate inventory counts.
 
 ## Experience And Visual System
 
-- **Plan:** a compact action summary, service navigation, workspace scope, changes-only filter, and a sortable resource register. Destructive actions sort first. Each entry exposes its address, service, action, and workspace without opening a panel.
-- **Relationships:** a workspace-qualified dependency graph using ELK's routed edge sections. Arrowheads point from a dependent to its prerequisite. Selected resources expose a direct-neighbor view and a textual relationship list. Zoom and fit have keyboard-operable controls.
-- **Network:** retain the existing specialized VPC/ELB map as a secondary view. The primary inventory must include glue resources, unknown AWS types, and resources that cannot be placed in a VPC.
+- **Resource Map, first and default:** specialized VPC/ELB placement with workspace-isolated selection. Solid arrows follow network paths, dashed lines represent direct associations, and routes use clear lanes around resource headers. A grouped legend distinguishes actions from connection semantics without a permanent footer hint.
+- **Plan, second:** a compact action summary, service navigation, workspace scope, changes-only filter, and a sortable resource register. Destructive actions sort first. Each entry exposes its address, service, action, and workspace without opening a panel. Include glue resources, unknown AWS types, and resources outside a VPC.
+- **Graph, third:** a workspace-qualified dependency graph using ELK's routed edge sections. Arrowheads point from a dependent to its prerequisite. Selected resources expose a direct-neighbor view and a textual relationship list. Zoom and fit have keyboard-operable controls.
+- **Canvas space:** a compact view bar offers Expand/Restore for every view. Expanded mode reclaims the header and filter area, preserves selection and filters, and refits the graph. Keyboard Escape unwinds one interaction layer at a time.
 - **Details:** one accessible inspector with configuration and relationships; current selection wins over delayed requests. Sensitive values are masked before they reach the browser. Unknown values remain distinct from empty values.
 - **Identity:** a scalable Terradune mark built from layered terrain and connected nodes, paired with a readable wordmark. White and cool neutral surfaces, a deep green accent, and distinct status colors support long review sessions. Use the same mark for favicon, app header, and README.
 - **Responsive behavior:** a compact service selector and resource rows on phones, a service rail and table on desktop, and a full-width inspector on narrow screens. No tiny scaled-down desktop diagrams as the default mobile experience.
@@ -44,9 +45,9 @@ Terraform/provider versions and credentials still determine whether a plan can r
 
 ## Delivery Sequence
 
-1. **Review foundation and identity, this PR.** Replace the default wall of nested cards with the canonical resource register; add service/workspace scope and changes-only filtering; preserve existing views; improve routed arrows and graph controls; sanitize details; add logo and rewrite README; migrate module and repository references to `albatroxxx`.
+1. **Review foundation and identity, this PR.** Keep Resource Map first, provide a canonical Plan register, and rename Relationships to Graph; add service/workspace scope and changes-only filtering; improve map associations, legend, and graph controls; expand any active view; sanitize details; add logo and rewrite README; migrate module and repository references to `albatroxxx`.
 2. **Plan compatibility.** Introduce a versioned plan envelope and test fixtures for all lifecycle cases in the coverage table. Include data-source context, output changes, diagnostics, alias-aware metadata, and incomplete plan warnings. Publish a tested Terraform/AWS provider version matrix.
-3. **Relationship trust and scale.** Label edge provenance, isolate all legacy map highlighting by workspace, coalesce SSE updates, serialize rebuilds, preserve selections through live updates, and add graph budgets and progressive expansion for large estates.
+3. **Relationship trust and scale.** Label edge provenance, coalesce SSE updates, serialize rebuilds, preserve focus through live updates, and add graph budgets and progressive expansion for large estates. Workspace-isolated map highlighting and persistent pins are delivered in this PR.
 4. **Production quality.** Cross-platform browser CI, screen-reader checks, contrast audits, realistic 1k/10k-resource performance fixtures, API contract tests, cancellation/load tests, and release packaging for supported systems.
 
 ## Acceptance And Validation
@@ -56,7 +57,7 @@ Terraform/provider versions and credentials still determine whether a plan can r
 - Keyboard users can navigate views, select a resource, open and close details, filter the list, and use graph zoom/fit. All icon-only actions have accessible names and tooltips.
 - Dependency arrows use the layout engine's paths and terminate at prerequisites. Filtering does not create edges to absent resources. A delayed layout cannot replace a newer view.
 - Sensitive values are redacted for the selected resource and related resources. Nested maps/lists and before/after changes are covered by tests.
-- Screenshots at desktop/tablet/phone sizes show readable text and no unintended horizontal overflow. Capture baseline and updated Plan/Relationships views.
+- Screenshots at desktop/tablet/phone sizes show readable text and no unintended horizontal overflow. Capture baseline and updated Resource Map, Plan, and expanded Graph views.
 - Run Go tests, JavaScript behavior checks, `go vet`, and whitespace checks; record which security/browser checks ran and which remain in CI.
 - The README includes the logo, installation and usage, accurate coverage boundaries, architecture, contribution/testing guidance, and no old account references.
 

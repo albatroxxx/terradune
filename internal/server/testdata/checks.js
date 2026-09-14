@@ -12,6 +12,10 @@ function check(name, fn) {
   }
 }
 
+check('Resource Map is the default view', function () {
+  if (tab !== 'map') throw new Error('default view is not Resource Map');
+});
+
 check('renderMap runs over every workspace', function () {
   renderMap(STATE);
 });
@@ -239,10 +243,12 @@ check('ribbons stay hidden until something is hovered', function () {
   if (!drawn.length) throw new Error('no ribbons drawn');
   var directed = 0;
   for (var i = 0; i < drawn.length; i++) {
-    if (drawn[i].getAttribute('stroke-opacity') !== '0') {
+    if (drawn[i].getAttribute('opacity') !== '0') {
       throw new Error('a ribbon is visible before anything is hovered');
     }
-    if (drawn[i].getAttribute('marker-end')) throw new Error('an arrowhead survived');
+    if (!drawn[i].getAttribute('marker-end') && !drawn[i].getAttribute('stroke-dasharray')) {
+      throw new Error('connection has neither an arrow nor association dashes');
+    }
     if (drawn[i].dataset.from && drawn[i].dataset.to) directed++;
   }
   if (directed !== drawn.length) throw new Error('ribbons missing a direction');
@@ -255,7 +261,7 @@ check('hovering reveals the traced path only', function () {
   var drawn = document.getElementById('ribbons').children;
   var hot = [], cold = 0;
   for (var i = 0; i < drawn.length; i++) {
-    if (drawn[i].getAttribute('stroke-opacity') !== '0') {
+    if (drawn[i].getAttribute('opacity') !== '0') {
       hot.push(drawn[i].dataset.from + ' -> ' + drawn[i].dataset.to);
     } else cold++;
   }
@@ -273,7 +279,7 @@ check('hovering reveals the traced path only', function () {
   }
   hoverApi.clear();
   for (var j = 0; j < drawn.length; j++) {
-    if (drawn[j].getAttribute('stroke-opacity') !== '0') {
+    if (drawn[j].getAttribute('opacity') !== '0') {
       throw new Error('ribbons stayed visible after the hover ended');
     }
   }
@@ -395,7 +401,7 @@ check('pinning holds the path, and survives a redraw', function () {
   function visible() {
     var n = 0;
     for (var i = 0; i < drawn.length; i++) {
-      if (drawn[i].getAttribute('stroke-opacity') !== '0') n++;
+      if (drawn[i].getAttribute('opacity') !== '0') n++;
     }
     return n;
   }
@@ -749,7 +755,77 @@ check('arrow keys switch tabs and move focus with the selected state', function 
     throw new Error('selected state or roving tabindex wrong');
   }
   __fire($('tab-graph'), 'keydown', 0, 'Home');
-  if (tab !== 'review' || document.activeElement !== $('tab-review')) throw new Error('review not restored');
+  if (tab !== 'map' || document.activeElement !== $('tab-map')) throw new Error('map not restored');
+  __fire($('tab-map'), 'keydown', 0, 'ArrowRight');
+  if (tab !== 'review') throw new Error('Plan is not second');
+  __fire($('tab-review'), 'keydown', 0, 'End');
+  if (tab !== 'graph') throw new Error('Graph is not last');
+  setTab('map');
+});
+
+check('expanded view restores with Escape and exposes its state', function () {
+  setLegend(false);
+  __fire($('expand-view'), 'click');
+  if (!document.body.classList.contains('expanded-view')) throw new Error('view not expanded');
+  if ($('expand-view').getAttribute('aria-label') !== 'Restore view' || $('expand-view').getAttribute('aria-pressed') !== 'true') {
+    throw new Error('expanded state not exposed');
+  }
+  setLegend(true);
+  __fire(window, 'keydown', 0, 'Escape');
+  if (!$('legend').classList.contains('closed') || !expandedView) throw new Error('Escape did not close only the legend');
+  __fire(window, 'keydown', 0, 'Escape');
+  if (expandedView || document.body.classList.contains('expanded-view')) throw new Error('view not restored');
+});
+
+check('map paths and pins are isolated by workspace, including redraws', function () {
+  var base = STATE.workspaces.find(function (ws) { return ws.name === 'platform'; });
+  var state = {workspaces: ['dev', 'prod'].map(function (name) { return Object.assign({}, base, {name: name}); })};
+  renderMap(state);
+  hoverApi.pin('aws_subnet.public[0]', 'prod');
+  var pinned = __allCards().filter(function (c) { return c.classList.contains('pinned'); });
+  if (!pinned.length || pinned.some(function (c) { return c.dataset.ws !== 'prod'; })) throw new Error('pin crossed workspaces');
+  var paths = $('ribbons').children.filter(function (p) { return p.getAttribute('opacity') === '1'; });
+  if (!paths.length || paths.some(function (p) { return p.dataset.ws !== 'prod'; })) throw new Error('path crossed workspaces');
+  var prodVPC = __allCards().find(function (c) { return c.dataset.ws === 'prod' && c.dataset.id === 'aws_vpc.main'; });
+  var source = paths.find(function (p) { return p.dataset.from === 'aws_vpc.main'; });
+  var rect = prodVPC.getBoundingClientRect();
+  var x = Number(source.getAttribute('d').split(' ')[1]);
+  if (x < rect.left || x > rect.left + rect.width) throw new Error('ribbon anchored to other workspace');
+  renderMap(state);
+  if (pinnedWorkspace !== 'prod') throw new Error('redraw changed workspace');
+  renderMap({workspaces: [state.workspaces[0]]});
+  if (hoverApi.pinned()) throw new Error('removed workspace pin migrated to another workspace');
+  renderMap(STATE);
+});
+
+check('stacked cards have gutter connections and isolated hover clears old paths', function () {
+  renderMap(STATE);
+  var vpc = __allCards().find(function (c) { return c.dataset.ws === 'platform' && c.dataset.id === 'aws_vpc.main'; });
+  var subnet = __allCards().find(function (c) { return c.dataset.ws === 'platform' && c.dataset.id === 'aws_subnet.public[0]'; });
+  vpc._main.getBoundingClientRect = function () { return {left: 40, top: 20, width: 200, height: 60}; };
+  subnet._main.getBoundingClientRect = function () { return {left: 40, top: 180, width: 200, height: 60}; };
+  drawRibbons(STATE.workspaces.map(buildMap));
+  wireHover(STATE.workspaces.map(buildMap));
+  var path = $('ribbons').children.find(function (p) { return p.dataset.ws === 'platform' && p.dataset.from === 'aws_vpc.main' && p.dataset.to === 'aws_subnet.public[0]'; });
+  if (!path || !path.getAttribute('d').includes(' L ')) throw new Error('stacked connection missing');
+  hoverApi.hover('aws_subnet.public[0]', 'platform');
+  hoverApi.hover('isolated', 'platform');
+  if ($('ribbons').children.some(function (p) { return p.getAttribute('opacity') !== '0'; })) throw new Error('previous path left behind');
+  hoverApi.clear();
+  renderMap(STATE);
+});
+
+check('long associations route around intervening card headers', function () {
+  var a = {x: 20, y: 100, w: 100, h: 60}, b = {x: 400, y: 100, w: 100, h: 60};
+  var blocker = {x: 200, y: 70, w: 100, h: 130};
+  var d = ribbonRoute(a, b, [a, blocker, b]);
+  var numbers = d.match(/[\d.]+/g).map(Number);
+  for (var i = 2; i < numbers.length; i += 2) {
+    var x1 = numbers[i - 2], y1 = numbers[i - 1], x2 = numbers[i], y2 = numbers[i + 1];
+    var hits = x1 === x2 ? x1 > 200 && x1 < 300 && Math.max(y1, y2) > 70 && Math.min(y1, y2) < 200
+      : y1 > 70 && y1 < 200 && Math.max(x1, x2) > 200 && Math.min(x1, x2) < 300;
+    if (hits) throw new Error('association crosses an unrelated card: ' + d);
+  }
 });
 
 check('inventory includes unknown types, glue and identical addresses in different workspaces', function () {
