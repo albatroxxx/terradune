@@ -723,6 +723,35 @@ check('the legend stays folded away until asked for', function () {
   if (btn.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded not cleared');
 });
 
+check('keyboard activation pins a path and the details action does not unpin it', function () {
+  renderMap(STATE);
+  var card = __allCards()[0];
+  __fire(card, 'click', 0); // native button keyboard activation has detail zero
+  if (hoverApi.pinned() !== card.dataset.id) throw new Error('keyboard pin failed');
+  if (card._main.getAttribute('aria-pressed') !== 'true') throw new Error('pin state not exposed');
+  var opened, real = openDetail;
+  try {
+    openDetail = function (ws, id, opener) { opened = [ws, id, opener]; };
+    __fire(card._detail, 'click', 0);
+  } finally { openDetail = real; }
+  if (!opened || opened[0] !== card.dataset.ws || opened[1] !== card.dataset.id || opened[2] !== card._detail) {
+    throw new Error('details action lost resource identity or opener');
+  }
+  if (hoverApi.pinned() !== card.dataset.id) throw new Error('details action released the pin');
+  __fire(card, 'click', 0);
+  if (card._main.getAttribute('aria-pressed') !== 'false') throw new Error('released pin state not exposed');
+});
+
+check('arrow keys switch tabs and move focus with the selected state', function () {
+  __fire($('tab-map'), 'keydown', 0, 'ArrowRight');
+  if (tab !== 'graph' || document.activeElement !== $('tab-graph')) throw new Error('graph not focused');
+  if ($('tab-graph').getAttribute('aria-selected') !== 'true' || $('tab-map').tabIndex !== -1) {
+    throw new Error('selected state or roving tabindex wrong');
+  }
+  __fire($('tab-graph'), 'keydown', 0, 'Home');
+  if (tab !== 'map' || document.activeElement !== $('tab-map')) throw new Error('map not restored');
+});
+
 // --- a whole estate: two VPCs and thirty-odd services --------------------
 function estateMap() {
   for (var i = 0; i < STATE.workspaces.length; i++) {
@@ -811,8 +840,46 @@ check('an estate of thirty-odd services still renders', function () {
   if (count < 45) throw new Error('want a broad estate, got ' + count + ' resource types');
 });
 
-if (__failures) {
-  print('\n' + __failures + ' FAILURE(S)');
-} else {
-  print('\nALL CHECKS PASSED');
+async function checkDetailRequests() {
+  var realFetch = fetch, pending = [];
+  fetch = function () { return new Promise(function (resolve) { pending.push(resolve); }); };
+  var response = function (name) {
+    return { ok: true, json: async function () {
+      return { type: 'aws_vpc', name: name, address: 'aws_vpc.' + name, status: 'existing', after: {} };
+    } };
+  };
+  try {
+    var opener = __allCards()[0]._detail;
+    var old = openDetail('one', 'aws_vpc.old', opener);
+    var current = openDetail('one', 'aws_vpc.current', opener);
+    if (!$('drawer').open || document.activeElement !== $('dr-close')) throw new Error('dialog did not receive focus');
+    pending[1](response('current'));
+    await current;
+    pending[0](response('old'));
+    await old;
+    if ($('dr-title').textContent !== 'VPC · current') throw new Error('stale response replaced current details');
+
+    var closing = openDetail('one', 'aws_vpc.closing', opener);
+    if ($('dr-pill').textContent !== '') throw new Error('old status leaked into loading state');
+    closeDetail();
+    pending[2](response('closing'));
+    await closing;
+    if ($('drawer').open || $('dr-title').textContent !== 'aws_vpc.closing') throw new Error('response updated closed drawer');
+    if (document.activeElement !== opener) throw new Error('focus not restored');
+
+    var failed = openDetail('one', 'aws_vpc.failed', opener);
+    pending[3]({ ok: false, text: async function () { return '<unavailable>'; } });
+    await failed;
+    if (!$('dr-body').innerHTML.includes('&lt;unavailable&gt;')) throw new Error('error missing or unescaped');
+    closeDetail();
+    print('  ok   detail requests preserve current selection, errors and focus');
+  } catch (err) {
+    __failures++;
+    print('  FAIL detail requests -> ' + err);
+  } finally { fetch = realFetch; }
 }
+
+checkDetailRequests().then(function () {
+  if (__failures) print('\n' + __failures + ' FAILURE(S)');
+  else print('\nALL CHECKS PASSED');
+});
