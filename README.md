@@ -24,6 +24,12 @@ per VPC, with columns for the VPC, its subnets grouped by availability zone,
 route tables, and network connections. Everything else in the VPC is listed
 beside it, grouped by resource type.
 
+Load balancers get a map of their own, laid out the way the ELB console lays
+one out: the balancer, the listeners, the rules that choose between target
+groups, the groups, and what is actually behind them. Listing those five types
+side by side cannot say which rule reaches which group, which is the only
+question worth asking of a load balancer.
+
 - **Status at a glance.** Each card is coloured by what the plan will do to it:
   green to create, blue already exists, amber to change, orange to replace, red
   to destroy. The status is written on the card too, so it does not depend on
@@ -42,13 +48,20 @@ beside it, grouped by resource type.
 ### It draws only what the plan states
 
 Where Terraform does not record which instance a dependency points at,
-terradune draws nothing rather than guessing. A load balancer whose subnets are
-chosen inside a `local` does not gain an arrow to every subnet in the VPC; the
-plan genuinely does not know until apply, and a drawn arrow reads as a fact.
+terradune draws nothing rather than guessing. A drawn arrow reads as a fact, so
+it has to be one.
 
-This means a codebase that wires its modules through locals will show fewer
-connections than one using direct references. That is the diagram being honest
-about what is knowable before `apply`.
+Before anything is applied that is a real limit. A load balancer whose subnets
+are chosen inside a `local` does not gain an arrow to every subnet in the VPC,
+because the plan genuinely does not know which until apply.
+
+Once infrastructure exists, the limit mostly lifts — and this is the case real
+codebases are in. An applied resource carries the ids of the things it is
+attached to: a subnet_id whose value is some subnet's id **is** that subnet,
+however the configuration routed it there. That source does not care whether
+the value passed through a local, a module output, or a variable, and it
+answers at the level of the individual instance, which is the level the diagram
+draws at.
 
 **terradune never applies anything.** It runs `terraform plan`, `terraform
 show` and `terraform graph`, all read-only.
@@ -102,7 +115,12 @@ Terraform expects them (`AWS_PROFILE`, SSO, environment variables).
    outputs, and data sources. An edge is drawn only where the instance is not
    in doubt: the copy inside the same module instance, or a resource that has
    just one.
-4. **Serve.** The diagram is a single self-contained binary — layout engine,
+4. **Read the ids.** For anything that already exists, the attributes settle
+   what the configuration could not. Every id and ARN in the plan is matched
+   back to the resource that owns it, and any resource carrying one of those
+   values is connected to it. This is where most of a real diagram's
+   relationships come from.
+5. **Serve.** The diagram is a single self-contained binary — layout engine,
    fonts and icons are all embedded, so it works offline. Changes to `.tf`
    files re-plan only the workspace that owns the changed file, and the result
    is pushed to the browser over server-sent events.
@@ -130,6 +148,26 @@ gosec ./... && staticcheck ./... && govulncheck ./...
 semgrep scan --config p/golang --config p/javascript --config p/secrets --exclude=examples
 ```
 
+## Examples
+
+| Example | What it is for |
+| --- | --- |
+| `examples/simple` | A workspace with no AWS in it at all |
+| `examples/vpc` | A VPC planned from nothing: every id "known after apply" |
+| `examples/ec2` | Instances, volumes and a load balancer |
+| `examples/platform` | 35 resources across two AZs, with an ALB — **already applied** |
+| `examples/layered` | A network module and an app module wired through a `local` — **already applied** |
+
+The last two ship with state, so they plan as infrastructure that already
+exists. That is the case that matters most and the hardest one to get hold of,
+because an apply needs an account. `examples/tools/fakeapply.py` gets there
+offline instead: plan, write the result back as state inventing the ids only a
+provider could assign, and plan again, until the plan is empty.
+
+```sh
+examples/tools/fakeapply.py examples/platform
+```
+
 ## Testing
 
 The Go packages are covered by unit tests over real Terraform plan fixtures.
@@ -149,13 +187,15 @@ resource detail, filtering and search.
 
 Known limitations:
 
-- Wiring through `locals` is recovered from Terraform's graph, which is
-  transitively reduced — a relationship can be hidden behind an intervening
-  resource, and is then not drawn.
-- Instance-level links inside `for_each` modules are only drawn where the
-  target is unambiguous, so some real relationships are omitted before apply.
-- Only AWS networking has a bespoke layout. Other providers' resources are
-  listed and connected, but not arranged into a topology.
+- Before a workspace is applied, wiring through `locals` is only recoverable
+  from Terraform's graph, which is transitively reduced and names resources
+  rather than instances. Which of several subnets an instance will sit in is
+  not knowable then, and is not drawn.
+- A resource that exists but is managed elsewhere — a VPC consumed as a data
+  source, say — is not a node, so nothing is grouped under it.
+- Only AWS networking and load balancing have a bespoke layout. Other
+  providers' resources are listed and connected, but not arranged into a
+  topology.
 
 Planned: reading applied state so resources can be matched by their real IDs,
 and reading the live account to show drift and resources Terraform does not
