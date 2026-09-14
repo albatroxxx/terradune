@@ -723,6 +723,94 @@ check('the legend stays folded away until asked for', function () {
   if (btn.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded not cleared');
 });
 
+// --- a whole estate: two VPCs and thirty-odd services --------------------
+function estateMap() {
+  for (var i = 0; i < STATE.workspaces.length; i++) {
+    if (STATE.workspaces[i].name === 'estate') return buildMap(STATE.workspaces[i]);
+  }
+  throw new Error('no estate workspace in fixtures');
+}
+
+check('two VPCs are drawn as two panels, each with its own subnets', function () {
+  var m = estateMap();
+  if (m.panels.length !== 2) throw new Error('want two VPC panels, got ' + m.panels.length);
+  var byVpc = {};
+  for (var i = 0; i < m.panels.length; i++) {
+    byVpc[m.panels[i].vpc.id] = m.panels[i];
+  }
+  if (!byVpc['aws_vpc.app'] || !byVpc['aws_vpc.data']) {
+    throw new Error('got panels for ' + Object.keys(byVpc).join(', '));
+  }
+  // A subnet belongs to exactly one of them, never to both.
+  for (var j = 0; j < m.panels.length; j++) {
+    var p = m.panels[j];
+    for (var k = 0; k < p.subnets.length; k++) {
+      var want = p.vpc.id === 'aws_vpc.app' ? 'app_' : 'data_';
+      if (p.subnets[k].id.indexOf(want) === -1) {
+        throw new Error(p.subnets[k].id + ' is drawn under ' + p.vpc.id);
+      }
+    }
+  }
+});
+
+check('nothing certainly inside a VPC is filed as outside AWS', function () {
+  var m = estateMap();
+  var outside = m.scopes.external || [];
+  if (outside.length) {
+    throw new Error('filed outside AWS: ' + outside.map(function (n) { return n.id; }).join(', '));
+  }
+});
+
+check('a listener with no target group still finds its load balancer', function () {
+  // The redirect listener forwards nowhere, so it reaches its VPC only through
+  // the balancer and that balancer's subnets — further than a short search.
+  var m = estateMap();
+  var stacks = [];
+  for (var i = 0; i < m.panels.length; i++) stacks = stacks.concat(m.panels[i].lbs || []);
+  var byLb = {};
+  for (var j = 0; j < stacks.length; j++) byLb[stacks[j].lb.id] = stacks[j];
+  var pub = byLb['aws_lb.public'];
+  if (!pub) throw new Error('the public load balancer has no map');
+  var ids = pub.listeners.map(function (n) { return n.id; }).sort();
+  if (ids.join(',') !== 'aws_lb_listener.https,aws_lb_listener.redirect') {
+    throw new Error('listeners are ' + ids.join(', '));
+  }
+});
+
+check('what registers the targets is what the targets column shows', function () {
+  var m = estateMap();
+  var stacks = [];
+  for (var i = 0; i < m.panels.length; i++) stacks = stacks.concat(m.panels[i].lbs || []);
+  var pub = null;
+  for (var j = 0; j < stacks.length; j++) if (stacks[j].lb.id === 'aws_lb.public') pub = stacks[j];
+  var ids = pub.targets.map(function (n) { return n.id; }).sort().join(',');
+  if (ids !== 'aws_autoscaling_group.worker,aws_ecs_service.api') {
+    throw new Error('targets are ' + ids);
+  }
+  // An alarm reads a target group's metrics; it is not behind the group.
+  for (var k = 0; k < pub.targets.length; k++) {
+    if (pub.targets[k].type === 'aws_cloudwatch_metric_alarm') {
+      throw new Error('an alarm was counted as a target');
+    }
+  }
+});
+
+check('an estate of thirty-odd services still renders', function () {
+  filter.text = ''; filter.statuses = new Set();
+  renderMap(STATE);
+  var h = __sinks['mapbody'] || '';
+  if (h.indexOf('estate') === -1) throw new Error('the estate workspace did not render');
+  var m = estateMap();
+  var types = {};
+  for (var i = 0; i < STATE.workspaces.length; i++) {
+    if (STATE.workspaces[i].name !== 'estate') continue;
+    var ns = STATE.workspaces[i].nodes;
+    for (var j = 0; j < ns.length; j++) types[ns[j].type] = true;
+  }
+  var count = Object.keys(types).length;
+  if (count < 45) throw new Error('want a broad estate, got ' + count + ' resource types');
+});
+
 if (__failures) {
   print('\n' + __failures + ' FAILURE(S)');
 } else {

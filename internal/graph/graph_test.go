@@ -3,6 +3,7 @@ package graph
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	tfjson "github.com/hashicorp/terraform-json"
@@ -280,5 +281,57 @@ func TestLocalsHideWiringThatIDsRecover(t *testing.T) {
 			t.Errorf("%s -> %s cannot be known without the attribute values; "+
 				"drawing it would be a guess", want.From, want.To)
 		}
+	}
+}
+
+// The estate fixture is deliberately broad: two VPCs joined by a transit
+// gateway, load balancers, databases, queues, keys and DNS. It is the only
+// fixture wide enough to catch a rule that happens to hold for one VPC, or for
+// the handful of services a small example reaches.
+func TestBuildEstateSpansManyServices(t *testing.T) {
+	g := Build(loadFixture(t, "testdata/estate_plan.json"))
+
+	services, types := map[string]bool{}, map[string]bool{}
+	for _, n := range g.Nodes {
+		types[n.Type] = true
+		// aws_lb_target_group -> lb, aws_ec2_transit_gateway -> ec2.
+		parts := strings.SplitN(strings.TrimPrefix(n.Type, "aws_"), "_", 2)
+		services[parts[0]] = true
+	}
+	if len(services) < 30 {
+		t.Errorf("the estate covers %d AWS services, want at least 30", len(services))
+	}
+	if len(types) < 45 {
+		t.Errorf("the estate covers %d resource types, want at least 45", len(types))
+	}
+
+	var vpcs int
+	for _, n := range g.Nodes {
+		if n.Type == "aws_vpc" {
+			vpcs++
+		}
+	}
+	if vpcs != 2 {
+		t.Errorf("got %d VPCs, want 2", vpcs)
+	}
+
+	// Both VPCs reach the transit gateway that joins them, and each subnet
+	// belongs to exactly one of them. Both come from the ids alone.
+	edges := map[Edge]bool{}
+	for _, e := range g.Edges {
+		edges[e] = true
+	}
+	for _, want := range []Edge{
+		{From: "aws_ec2_transit_gateway_vpc_attachment.app", To: "aws_vpc.app"},
+		{From: "aws_ec2_transit_gateway_vpc_attachment.data", To: "aws_vpc.data"},
+		{From: "aws_subnet.app_private[0]", To: "aws_vpc.app"},
+		{From: "aws_subnet.data_private[0]", To: "aws_vpc.data"},
+	} {
+		if !edges[want] {
+			t.Errorf("missing edge %s -> %s", want.From, want.To)
+		}
+	}
+	if edges[Edge{From: "aws_subnet.data_private[0]", To: "aws_vpc.app"}] {
+		t.Error("a data subnet is wired to the app VPC")
 	}
 }

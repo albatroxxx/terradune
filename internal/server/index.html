@@ -373,6 +373,12 @@ const idx = a => (a.match(/\[[^\]]+\]$/) || [''])[0];
 
 // Resources whose whole purpose is to bind two others together. The pair is
 // [from, to] in the direction the diagram should read.
+// What registers targets with a load balancer's target group. Anything else
+// that merely mentions a group — an alarm on its metrics, say — is not behind
+// it and does not belong in its targets.
+const TARGET_PROVIDERS = new Set(['aws_autoscaling_group', 'aws_ecs_service',
+  'aws_instance', 'aws_lambda_function', 'aws_network_interface']);
+
 const CONNECTORS = {
   aws_volume_attachment: ['aws_instance', 'aws_ebs_volume'],
   aws_network_interface_attachment: ['aws_instance', 'aws_network_interface'],
@@ -502,10 +508,33 @@ function buildMap(ws) {
       const up = depsOfType(d, m => m.type === 'aws_vpc');
       if (up.length) return up[0];
     }
-    // A type that cannot exist outside a VPC is in one even when the plan
-    // cannot yet name it, so with a single VPC present there is no doubt
-    // which. This says nothing about resources that merely could be in a VPC.
-    if (nodes.get(id)?.meta?.scope === 'vpc' && vpcs.length === 1) return vpcs[0].id;
+    // Beyond two steps the search is limited to types that cannot exist
+    // outside a VPC. For those the only open question is which one, so
+    // following the chain answers it; for everything else a long chain proves
+    // nothing — an alarm watching a load balancer reaches that VPC too, and
+    // does not live in it.
+    if (nodes.get(id)?.meta?.scope !== 'vpc') return null;
+    const seen = new Set([id]);
+    let frontier = [id];
+    for (let step = 0; step < 4 && frontier.length; step++) {
+      const next = [], found = new Set();
+      for (const cur of frontier) {
+        for (const d of deps.get(cur) || []) {
+          if (seen.has(d)) continue;
+          seen.add(d);
+          if (nodes.get(d)?.type === 'aws_vpc') found.add(d);
+          else next.push(d);
+        }
+      }
+      // The nearest VPC wins, and reaching two at the same distance is a tie
+      // nothing in the plan breaks.
+      if (found.size === 1) return [...found][0];
+      if (found.size > 1) return null;
+      frontier = next;
+    }
+    // Still nothing, but it is in a VPC by definition — so with only one in
+    // the workspace there is no doubt which.
+    if (vpcs.length === 1) return vpcs[0].id;
     return null;
   };
 
@@ -627,12 +656,16 @@ function buildMap(ws) {
       // Targets hang off the attachment that binds them, which is drawn as the
       // line rather than as a card, the way routes and associations are.
       for (const tg of groups.keys()) {
+        const target = t => {
+          add(tg, t, true, key);
+          if (!targets.includes(t)) targets.push(t);
+        };
         for (const aid of usedByType(tg, m => m.type === 'aws_lb_target_group_attachment')) {
-          for (const t of depsOfType(aid, m => m.type !== 'aws_lb_target_group')) {
-            add(tg, t, true, key);
-            if (!targets.includes(t)) targets.push(t);
-          }
+          for (const t of depsOfType(aid, m => m.type !== 'aws_lb_target_group')) target(t);
         }
+        // Hardly any codebase registers targets one at a time. An auto scaling
+        // group or a service does it, and that is what is behind the group.
+        for (const t of usedByType(tg, m => TARGET_PROVIDERS.has(m.type))) target(t);
       }
       p.lbs.push({ key, lb, listeners: listeners.sort(bySort), rules: rules.sort(bySort),
                    groups: [...groups.keys()].map(id => nodes.get(id)).sort(bySort),
@@ -651,11 +684,14 @@ function buildMap(ws) {
 
   // What genuinely is not part of a VPC still lives somewhere: an SSM
   // parameter belongs to the region, an IAM role to the account.
-  const scopes = { region: [], network: [], account: [], external: [] };
+  const scopes = { region: [], network: [], account: [], external: [], vpc: [] };
   for (const n of others) (scopes[n.meta?.scope] || scopes.external).push(n);
-  // Networking that reached no VPC is simply regional.
-  scopes.region.push(...scopes.network);
+  // Networking that reached no VPC is simply regional — and so is something
+  // that is certainly in a VPC but could not be tied to one of those drawn.
+  // Neither is "outside AWS", which is what an unknown scope used to mean.
+  scopes.region.push(...scopes.network, ...scopes.vpc);
   scopes.network = [];
+  scopes.vpc = [];
 
   for (const p of panels) {
     p.subnets.sort(bySort); p.routeTables.sort(bySort);

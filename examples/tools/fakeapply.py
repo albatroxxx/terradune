@@ -52,6 +52,13 @@ ID_PREFIX = {
     "aws_customer_gateway": "cgw",
     "aws_ebs_volume": "vol",
     "aws_ami": "ami",
+    "aws_launch_template": "lt",
+    "aws_efs_file_system": "fs",
+    "aws_efs_mount_target": "fsmt",
+    "aws_ec2_transit_gateway_route_table": "tgw-rtb",
+    "aws_dhcp_options": "dopt",
+    "aws_ebs_snapshot": "snap",
+    "aws_key_pair": "key",
 }
 
 # Resources whose id is their ARN, which is how the ELB v2 API identifies them.
@@ -140,10 +147,41 @@ def load_schemas(workdir):
     return schemas
 
 
+# Computed strings another resource is likely to reference. These are the ones
+# that have to carry a value: a reference to an empty id fails validation.
+def identifier_like(key):
+    return key in ("id", "arn", "endpoint", "address", "url") or key.endswith(
+        ("_id", "_arn", "_url", "_name", "_endpoint", "_address", "_suffix"))
+
+
+def computed_value(address, key, attr_type, region):
+    """A value the provider would have produced for a computed attribute.
+
+    For collections the empty value is right: "no propagating vgws" is true and
+    settled. For strings it is not. An empty string reads as a real value of
+    nothing, and providers reject that where they would accept any genuine id --
+    a Route 53 record pointing at a load balancer's zone_id fails with "must not
+    be empty". Every such attribute is non-empty on real infrastructure, so the
+    honest stand-in is an opaque value, not a blank one.
+    """
+    if attr_type == "string":
+        if not identifier_like(key):
+            # Anything else is better left unset. Many computed strings are
+            # only valid as one of a few words, or only valid at all on a
+            # resource configured a particular way, and inventing one is then
+            # rejected outright -- "FIFO throughput scope can only be set for
+            # FIFO topics". Null says "the provider has not said", which for
+            # an attribute nothing reads is both true and harmless.
+            return None
+        if key.endswith("_arn"):
+            service = address.split(".")[0].replace("aws_", "").split("_")[0]
+            return f"arn:aws:{service}:{region}:{ACCOUNT}:{digest(address + key, 12)}"
+        return digest(address + "/" + key, 14)
+    return zero_value(attr_type)
+
+
 def zero_value(attr_type):
     """The empty value of a Terraform type, or None where there is no sane one."""
-    if attr_type == "string":
-        return ""
     if attr_type == "number":
         return 0
     if attr_type == "bool":
@@ -206,7 +244,8 @@ def build_state(plan_json, schemas, previous):
             elif key in schema.get("blocks", ()):
                 attrs[key] = []                # a nested block nobody configured
             else:
-                attrs[key] = zero_value(schema.get("attributes", {}).get(key))
+                attrs[key] = computed_value(
+                    address, key, schema.get("attributes", {}).get(key), region)
 
         if not attrs.get("id"):
             attrs["id"] = carried.get("id") or fake_id(address, change["type"], region)
@@ -282,6 +321,7 @@ def main():
     schemas = load_schemas(workdir)
     carried = None
 
+    previous = None
     for round_no in range(1, args.rounds + 1):
         current = plan(workdir)
         outstanding = pending_changes(current)
@@ -289,20 +329,28 @@ def main():
         if not outstanding:
             print(f"converged: {state_path} is a fully applied state")
             return 0
+        if set(outstanding) == previous:
+            # The state has stopped changing but the plan is not empty. Some
+            # providers diff a resource whose before and after are identical --
+            # write-only attributes and server-side defaults do this -- and no
+            # further round will settle them. That is a fixpoint as much as an
+            # empty plan is, and leaving those few as pending changes makes the
+            # example cover a status the others never show.
+            print(f"settled: {state_path} is applied, with {len(outstanding)} "
+                  f"resource(s) the provider always replans:")
+            for address in outstanding:
+                print(f"  {address}")
+            return 0
+        previous = set(outstanding)
         carried = build_state(current, schemas, carried)
         with open(state_path, "w") as fh:
             json.dump(strip_internal(carried), fh, indent=2)
             fh.write("\n")
 
-    final = plan(workdir)
-    outstanding = pending_changes(final)
-    if outstanding:
-        print(f"did not converge after {args.rounds} rounds; still pending:", file=sys.stderr)
-        for address in outstanding[:20]:
-            print(f"  {address}", file=sys.stderr)
-        return 1
-    print(f"converged: {state_path} is a fully applied state")
-    return 0
+    print(f"did not settle after {args.rounds} rounds; still pending:", file=sys.stderr)
+    for address in pending_changes(plan(workdir))[:20]:
+        print(f"  {address}", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":

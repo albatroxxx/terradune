@@ -159,8 +159,9 @@ semgrep scan --config p/golang --config p/javascript --config p/secrets --exclud
 | `examples/ec2` | Instances, volumes and a load balancer |
 | `examples/platform` | 35 resources across two AZs, with an ALB — **already applied** |
 | `examples/layered` | A network module and an app module wired through a `local` — **already applied** |
+| `examples/estate` | Two VPCs and 39 AWS services, 116 resources — **already applied** |
 
-The last two ship with state, so they plan as infrastructure that already
+The last three ship with state, so they plan as infrastructure that already
 exists. That is the case that matters most and the hardest one to get hold of,
 because an apply needs an account. `examples/tools/fakeapply.py` gets there
 offline instead: plan, write the result back as state inventing the ids only a
@@ -169,6 +170,11 @@ provider could assign, and plan again, until the plan is empty.
 ```sh
 examples/tools/fakeapply.py examples/platform
 ```
+
+A handful of services cannot be reached this way: CloudFront, Step Functions
+and DynamoDB all call AWS while planning a resource that is already in state,
+so no invented state will satisfy them. The tool stops when the state stops
+changing and names anything the provider insists on replanning.
 
 ## Testing
 
