@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AsysGupta/terradune/internal/graph"
+	"github.com/albatroxxx/terradune/internal/graph"
 )
 
 //go:embed index.html assets

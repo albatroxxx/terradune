@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Terradune</title>
+  <rect width="64" height="64" rx="14" fill="#143E35"/>
+  <path d="M12 24 32 13l20 11-20 11L12 24Z" fill="#B4E9CE"/>
+  <path d="m12 33 20 11 20-11M12 42l20 11 20-11" stroke="#B4E9CE" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 27v17" stroke="#FFF" stroke-width="3"/>
+  <circle cx="32" cy="25" r="4" fill="#FFF"/>
+  <circle cx="32" cy="44" r="3" fill="#FFF"/>
+</svg>

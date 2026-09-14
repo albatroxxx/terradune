@@ -743,13 +743,41 @@ check('keyboard activation pins a path and the details action does not unpin it'
 });
 
 check('arrow keys switch tabs and move focus with the selected state', function () {
-  __fire($('tab-map'), 'keydown', 0, 'ArrowRight');
+  __fire($('tab-review'), 'keydown', 0, 'ArrowRight');
   if (tab !== 'graph' || document.activeElement !== $('tab-graph')) throw new Error('graph not focused');
-  if ($('tab-graph').getAttribute('aria-selected') !== 'true' || $('tab-map').tabIndex !== -1) {
+  if ($('tab-graph').getAttribute('aria-selected') !== 'true' || $('tab-review').tabIndex !== -1) {
     throw new Error('selected state or roving tabindex wrong');
   }
   __fire($('tab-graph'), 'keydown', 0, 'Home');
-  if (tab !== 'map' || document.activeElement !== $('tab-map')) throw new Error('map not restored');
+  if (tab !== 'review' || document.activeElement !== $('tab-review')) throw new Error('review not restored');
+});
+
+check('inventory includes unknown types, glue and identical addresses in different workspaces', function () {
+  var state = {workspaces: [
+    {name: 'dev', nodes: [{id: 'aws_future_service.main', type: 'aws_future_service', status: 'create'},
+      {id: 'aws_route.main', type: 'aws_route', status: 'destroy'}]},
+    {name: 'prod', nodes: [{id: 'aws_future_service.main', type: 'aws_future_service', status: 'existing'}]},
+  ]};
+  var rows = sortedReviewRows(state);
+  if (rows.length !== 3 || rows[0].node.status !== 'destroy') throw new Error('coverage or priority wrong');
+  if (new Set(rows.map(function (r) { return r.key; })).size !== 3) throw new Error('workspace identity collided');
+  reviewWorkspace = 'dev'; changesOnly = true;
+  if (sortedReviewRows(state).length !== 2) throw new Error('scope or changes filter wrong');
+  reviewService = 'Other AWS services';
+  if (sortedReviewRows(state).length !== 1) throw new Error('service filter wrong');
+  reviewWorkspace = ''; reviewService = ''; changesOnly = false;
+});
+
+check('focused relationships stay within the selected workspace and one hop', function () {
+  var state = {workspaces: ['dev', 'prod'].map(function (name) { return {name: name,
+    nodes: ['a', 'b', 'c'].map(function (id) { return {id: id, type: 'aws_future_service', status: 'existing'}; }),
+    edges: [{from: 'a', to: 'b'}, {from: 'b', to: 'c'}]}; })};
+  graphFocus = {workspace: 'prod', address: 'a'};
+  var result = relationshipState(state);
+  if (result.workspaces.length !== 1 || result.workspaces[0].name !== 'prod' || result.workspaces[0].nodes.length !== 2) {
+    throw new Error('focus leaked workspace or transitive neighbor');
+  }
+  graphFocus = null;
 });
 
 // --- a whole estate: two VPCs and thirty-odd services --------------------
