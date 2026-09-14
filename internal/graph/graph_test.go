@@ -225,3 +225,60 @@ func TestIDsRecoverEdgesWithoutConfiguration(t *testing.T) {
 		}
 	}
 }
+
+// The layered fixture is wired the way most real Terraform is: a network
+// module, an application module, and the values between them passed through a
+// local. This pins down exactly what each source of truth can and cannot say
+// about that, because the three disagree.
+func TestLocalsHideWiringThatIDsRecover(t *testing.T) {
+	dot, err := os.ReadFile("testdata/layered_graph.dot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Which subnet an instance is in. Two subnets, two instances, paired.
+	perInstance := []Edge{
+		{From: "module.app.aws_instance.this[0]", To: "module.network.aws_subnet.private[0]"},
+		{From: "module.app.aws_instance.this[1]", To: "module.network.aws_subnet.private[1]"},
+	}
+	// Which VPC the security group is in. One of each, so no pairing needed.
+	wholeResource := Edge{
+		From: "module.app.aws_security_group.this", To: "module.network.aws_vpc.this",
+	}
+
+	plan := loadFixture(t, "testdata/layered_plan.json")
+	have := map[Edge]bool{}
+	for _, e := range BuildWithDOT(plan, dot).Edges {
+		have[e] = true
+	}
+	for _, want := range append(perInstance, wholeResource) {
+		if !have[want] {
+			t.Errorf("link across the local not drawn: %s -> %s", want.From, want.To)
+		}
+	}
+
+	// Now take the attribute values away, which is the position a workspace
+	// that has never been applied is in.
+	blind := loadFixture(t, "testdata/layered_plan.json")
+	for _, rc := range blind.ResourceChanges {
+		rc.Change.After, rc.Change.Before = nil, nil
+	}
+	without := map[Edge]bool{}
+	for _, e := range BuildWithDOT(blind, dot).Edges {
+		without[e] = true
+	}
+	// Terraform's own graph does carry the chain through the local, so a
+	// target with a single instance is still reached.
+	if !without[wholeResource] {
+		t.Errorf("terraform's graph should still reach %s -> %s",
+			wholeResource.From, wholeResource.To)
+	}
+	// But that graph names resources, not instances. Which of two subnets an
+	// instance sits in is not something it can answer, so nothing is drawn —
+	// and an arrow drawn on a guess would read as a fact.
+	for _, want := range perInstance {
+		if without[want] {
+			t.Errorf("%s -> %s cannot be known without the attribute values; "+
+				"drawing it would be a guess", want.From, want.To)
+		}
+	}
+}

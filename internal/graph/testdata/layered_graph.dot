@@ -1,0 +1,73 @@
+digraph {
+	compound = "true"
+	newrank = "true"
+	subgraph "root" {
+		"[root] module.app.aws_instance.this (expand)" [label = "module.app.aws_instance.this", shape = "box"]
+		"[root] module.app.aws_security_group.this (expand)" [label = "module.app.aws_security_group.this", shape = "box"]
+		"[root] module.network.aws_eip.nat (expand)" [label = "module.network.aws_eip.nat", shape = "box"]
+		"[root] module.network.aws_internet_gateway.this (expand)" [label = "module.network.aws_internet_gateway.this", shape = "box"]
+		"[root] module.network.aws_nat_gateway.this (expand)" [label = "module.network.aws_nat_gateway.this", shape = "box"]
+		"[root] module.network.aws_route.private (expand)" [label = "module.network.aws_route.private", shape = "box"]
+		"[root] module.network.aws_route.public (expand)" [label = "module.network.aws_route.public", shape = "box"]
+		"[root] module.network.aws_route_table.private (expand)" [label = "module.network.aws_route_table.private", shape = "box"]
+		"[root] module.network.aws_route_table.public (expand)" [label = "module.network.aws_route_table.public", shape = "box"]
+		"[root] module.network.aws_route_table_association.private (expand)" [label = "module.network.aws_route_table_association.private", shape = "box"]
+		"[root] module.network.aws_route_table_association.public (expand)" [label = "module.network.aws_route_table_association.public", shape = "box"]
+		"[root] module.network.aws_subnet.private (expand)" [label = "module.network.aws_subnet.private", shape = "box"]
+		"[root] module.network.aws_subnet.public (expand)" [label = "module.network.aws_subnet.public", shape = "box"]
+		"[root] module.network.aws_vpc.this (expand)" [label = "module.network.aws_vpc.this", shape = "box"]
+		"[root] provider[\"registry.terraform.io/hashicorp/aws\"]" [label = "provider[\"registry.terraform.io/hashicorp/aws\"]", shape = "diamond"]
+		"[root] local.app_subnet (expand)" -> "[root] module.network.output.private_subnet_ids (expand)"
+		"[root] local.vpc_id (expand)" -> "[root] module.network.output.vpc_id (expand)"
+		"[root] module.app (close)" -> "[root] module.app.aws_instance.this (expand)"
+		"[root] module.app.aws_instance.this (expand)" -> "[root] module.app.aws_security_group.this (expand)"
+		"[root] module.app.aws_instance.this (expand)" -> "[root] module.app.var.subnet_ids (expand)"
+		"[root] module.app.aws_security_group.this (expand)" -> "[root] module.app.var.port (expand)"
+		"[root] module.app.aws_security_group.this (expand)" -> "[root] module.app.var.vpc_id (expand)"
+		"[root] module.app.var.port (expand)" -> "[root] local.app_ports (expand)"
+		"[root] module.app.var.port (expand)" -> "[root] module.app (expand)"
+		"[root] module.app.var.subnet_ids (expand)" -> "[root] local.app_subnet (expand)"
+		"[root] module.app.var.subnet_ids (expand)" -> "[root] module.app (expand)"
+		"[root] module.app.var.vpc_id (expand)" -> "[root] local.vpc_id (expand)"
+		"[root] module.app.var.vpc_id (expand)" -> "[root] module.app (expand)"
+		"[root] module.network (close)" -> "[root] module.network.aws_route.private (expand)"
+		"[root] module.network (close)" -> "[root] module.network.aws_route.public (expand)"
+		"[root] module.network (close)" -> "[root] module.network.aws_route_table_association.private (expand)"
+		"[root] module.network (close)" -> "[root] module.network.aws_route_table_association.public (expand)"
+		"[root] module.network (close)" -> "[root] module.network.output.private_subnet_ids (expand)"
+		"[root] module.network (close)" -> "[root] module.network.output.vpc_id (expand)"
+		"[root] module.network.aws_eip.nat (expand)" -> "[root] module.network (expand)"
+		"[root] module.network.aws_eip.nat (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+		"[root] module.network.aws_internet_gateway.this (expand)" -> "[root] module.network.aws_vpc.this (expand)"
+		"[root] module.network.aws_nat_gateway.this (expand)" -> "[root] module.network.aws_eip.nat (expand)"
+		"[root] module.network.aws_nat_gateway.this (expand)" -> "[root] module.network.aws_subnet.public (expand)"
+		"[root] module.network.aws_route.private (expand)" -> "[root] module.network.aws_nat_gateway.this (expand)"
+		"[root] module.network.aws_route.private (expand)" -> "[root] module.network.aws_route_table.private (expand)"
+		"[root] module.network.aws_route.public (expand)" -> "[root] module.network.aws_internet_gateway.this (expand)"
+		"[root] module.network.aws_route.public (expand)" -> "[root] module.network.aws_route_table.public (expand)"
+		"[root] module.network.aws_route_table.private (expand)" -> "[root] module.network.aws_vpc.this (expand)"
+		"[root] module.network.aws_route_table.public (expand)" -> "[root] module.network.aws_vpc.this (expand)"
+		"[root] module.network.aws_route_table_association.private (expand)" -> "[root] module.network.aws_route_table.private (expand)"
+		"[root] module.network.aws_route_table_association.private (expand)" -> "[root] module.network.aws_subnet.private (expand)"
+		"[root] module.network.aws_route_table_association.public (expand)" -> "[root] module.network.aws_route_table.public (expand)"
+		"[root] module.network.aws_route_table_association.public (expand)" -> "[root] module.network.aws_subnet.public (expand)"
+		"[root] module.network.aws_subnet.private (expand)" -> "[root] module.network.aws_vpc.this (expand)"
+		"[root] module.network.aws_subnet.private (expand)" -> "[root] module.network.var.azs (expand)"
+		"[root] module.network.aws_subnet.public (expand)" -> "[root] module.network.aws_vpc.this (expand)"
+		"[root] module.network.aws_subnet.public (expand)" -> "[root] module.network.var.azs (expand)"
+		"[root] module.network.aws_vpc.this (expand)" -> "[root] module.network.var.cidr (expand)"
+		"[root] module.network.aws_vpc.this (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+		"[root] module.network.output.private_subnet_ids (expand)" -> "[root] module.network.aws_subnet.private (expand)"
+		"[root] module.network.output.vpc_id (expand)" -> "[root] module.network.aws_vpc.this (expand)"
+		"[root] module.network.var.azs (expand)" -> "[root] module.network (expand)"
+		"[root] module.network.var.cidr (expand)" -> "[root] module.network (expand)"
+		"[root] provider[\"registry.terraform.io/hashicorp/aws\"] (close)" -> "[root] module.app.aws_instance.this (expand)"
+		"[root] provider[\"registry.terraform.io/hashicorp/aws\"] (close)" -> "[root] module.network.aws_route.private (expand)"
+		"[root] provider[\"registry.terraform.io/hashicorp/aws\"] (close)" -> "[root] module.network.aws_route.public (expand)"
+		"[root] provider[\"registry.terraform.io/hashicorp/aws\"] (close)" -> "[root] module.network.aws_route_table_association.private (expand)"
+		"[root] provider[\"registry.terraform.io/hashicorp/aws\"] (close)" -> "[root] module.network.aws_route_table_association.public (expand)"
+		"[root] root" -> "[root] module.app (close)"
+		"[root] root" -> "[root] module.network (close)"
+		"[root] root" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"] (close)"
+	}
+}

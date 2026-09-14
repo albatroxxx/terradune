@@ -644,6 +644,36 @@ check('what the load balancer map draws is not also listed beside the columns', 
   if (!beside['aws_security_group']) throw new Error('security groups went missing');
 });
 
+check('a module\'s instances are nested in another module\'s subnets', function () {
+  // The layered fixture passes subnet ids from the network module to the app
+  // module through a local, so this placement exists only because the
+  // instances carry the ids of the subnets they are in.
+  var ws = null;
+  for (var i = 0; i < STATE.workspaces.length; i++) {
+    if (STATE.workspaces[i].name === 'layered') ws = STATE.workspaces[i];
+  }
+  if (!ws) throw new Error('no layered workspace in fixtures');
+  var m = buildMap(ws);
+  if (m.panels.length !== 1) throw new Error('want one VPC panel, got ' + m.panels.length);
+  var nestedIn = {};
+  m.panels[0].contents.forEach(function (list, subnetId) {
+    for (var j = 0; j < list.length; j++) nestedIn[list[j].id] = subnetId;
+  });
+  [['module.app.aws_instance.this[0]', 'module.network.aws_subnet.private[0]'],
+   ['module.app.aws_instance.this[1]', 'module.network.aws_subnet.private[1]']]
+    .forEach(function (pair) {
+      if (nestedIn[pair[0]] !== pair[1]) {
+        throw new Error(pair[0] + ' sits in ' + nestedIn[pair[0]] + ', want ' + pair[1]);
+      }
+    });
+  // Nothing from the app module was stranded outside the VPC.
+  for (var k = 0; k < m.others.length; k++) {
+    if (m.others[k].type === 'aws_instance') {
+      throw new Error('an instance was left outside the VPC: ' + m.others[k].id);
+    }
+  }
+});
+
 if (__failures) {
   print('\n' + __failures + ' FAILURE(S)');
 } else {
