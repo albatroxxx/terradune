@@ -25,9 +25,9 @@ function __classList() {
 
 // Handlers are kept so __fire can deliver a click the way a browser would,
 // including the detail count that separates a single click from a double.
-function __fire(el, type, detail) {
+function __fire(el, type, detail, key) {
   var ev = {
-    type: type, detail: detail === undefined ? 1 : detail,
+    type: type, detail: detail === undefined ? 1 : detail, key: key,
     stopPropagation() {}, preventDefault() {},
   };
   var handlers = (el._handlers && el._handlers[type]) || [];
@@ -38,7 +38,9 @@ function __fire(el, type, detail) {
 function __fakeEl(id, tag) {
   return {
     id: id, tag: tag || id, _html: '', _text: '', dataset: {}, style: {},
-    attrs: {}, children: [], _handlers: {},
+    attrs: {}, children: [], _handlers: {}, isConnected: true, open: false,
+    showModal() { this.open = true; },
+    close() { this.open = false; },
     classList: __classList(),
     setAttribute(k, v) { this.attrs[k] = String(v); },
     getAttribute(k) { return this.attrs[k] === undefined ? null : this.attrs[k]; },
@@ -49,7 +51,11 @@ function __fakeEl(id, tag) {
       (this._handlers[type] || (this._handlers[type] = [])).push(fn);
     },
     removeEventListener() {},
-    querySelector(sel) { return __cardFor(sel); },
+    querySelector(sel) {
+      if (sel === '.card-main') return this._main;
+      if (sel === '.card-detail') return this._detail;
+      return __cardFor(sel);
+    },
     querySelectorAll(sel) {
       if (sel === '.card') return __allCards();
       // Element-name selectors resolve against this element's own children,
@@ -69,7 +75,8 @@ function __fakeEl(id, tag) {
     },
     get textContent() { return this._text; },
     set textContent(v) { this._text = v; },
-    set onclick(v) {}, focus() {},
+    set onclick(v) { this._handlers.click = [v]; },
+    focus() { document.activeElement = this; },
   };
 }
 
@@ -87,6 +94,8 @@ function __indexCards(html) {
     var el = __fakeEl('card:' + m[2], 'div');
     el.dataset.id = m[2].replace(/&quot;/g, '"');
     el.dataset.ws = m[3];
+    el._main = __fakeEl('main:' + m[2], 'button');
+    el._detail = __fakeEl('detail:' + m[2], 'button');
     var i = __cards.length;
     el.getBoundingClientRect = (function (idx) {
       return function () {
