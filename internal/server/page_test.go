@@ -58,6 +58,7 @@ func stateFromFixtures(t *testing.T) []byte {
 	for _, f := range []struct{ name, path string }{
 		{"ec2", "ec2_plan.json"},
 		{"modular", "modular_plan.json"},
+		{"platform", "platform_plan.json"},
 		{"vpc", "vpc_plan.json"},
 	} {
 		raw, err := os.ReadFile(filepath.Join("..", "graph", "testdata", f.path))

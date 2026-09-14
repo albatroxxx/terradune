@@ -8,6 +8,7 @@ import (
 	"io"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	tfjson "github.com/hashicorp/terraform-json"
@@ -301,6 +302,57 @@ var metaKeys = map[string]string{
 	"subnet_id":          "subnet_id",
 	"instance_type":      "spec",
 	"load_balancer_type": "spec",
+	// What a load balancer's parts are actually distinguished by: two
+	// listeners on one balancer differ only by port, and two rules only by
+	// priority and what they match.
+	"port":        "port",
+	"protocol":    "protocol",
+	"priority":    "priority",
+	"scheme":      "scheme",
+	"target_type": "target_type",
+	"private_ip":  "ip",
+	// A load balancer's scheme is computed by AWS, so a plan that has never
+	// reached it has only the "internal" flag the configuration set.
+	"internal": "internal",
+}
+
+// ruleCondition summarises what a listener rule matches on, which is the only
+// thing that tells two rules on the same listener apart.
+func ruleCondition(attrs map[string]interface{}) string {
+	conditions, ok := attrs["condition"].([]interface{})
+	if !ok {
+		return ""
+	}
+	var parts []string
+	for _, raw := range conditions {
+		cond, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		for _, kind := range []string{"path_pattern", "host_header", "http_request_method"} {
+			blocks, ok := cond[kind].([]interface{})
+			if !ok {
+				continue
+			}
+			for _, b := range blocks {
+				block, ok := b.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				values, ok := block["values"].([]interface{})
+				if !ok {
+					continue
+				}
+				for _, v := range values {
+					if s, ok := v.(string); ok && s != "" {
+						parts = append(parts, s)
+					}
+				}
+			}
+		}
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, " ")
 }
 
 func collectValues(mod *tfjson.StateModule, out map[string]map[string]string) {
@@ -310,9 +362,21 @@ func collectValues(mod *tfjson.StateModule, out map[string]map[string]string) {
 	for _, res := range mod.Resources {
 		m := map[string]string{}
 		for attr, key := range metaKeys {
-			if v, ok := res.AttributeValues[attr].(string); ok && v != "" {
-				m[key] = v
+			switch v := res.AttributeValues[attr].(type) {
+			case string:
+				if v != "" {
+					m[key] = v
+				}
+			case float64:
+				// Ports and priorities arrive as JSON numbers; the UI only
+				// ever prints them, so carry them as the text they will be.
+				m[key] = strconv.FormatFloat(v, 'f', -1, 64)
+			case bool:
+				m[key] = strconv.FormatBool(v)
 			}
+		}
+		if match := ruleCondition(res.AttributeValues); match != "" {
+			m["match"] = match
 		}
 		if tags, ok := res.AttributeValues["tags"].(map[string]interface{}); ok {
 			if name, ok := tags["Name"].(string); ok && name != "" {

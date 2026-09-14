@@ -174,9 +174,13 @@ check('links point along the columns, vpc -> subnet -> route table -> gateway', 
   var m = buildMap(vpcWs);
   var byId = {};
   for (var j = 0; j < vpcWs.nodes.length; j++) byId[vpcWs.nodes[j].id] = vpcWs.nodes[j];
+  // Only the hops of the route path are constrained to the column order. A
+  // plain relationship -- the subnet a NAT gateway sits in -- is free to
+  // connect whatever it genuinely connects.
   var kinds = {};
   for (var k = 0; k < m.links.length; k++) {
     var l = m.links[k];
+    if (!l.flow) continue;
     kinds[byId[l.from].type + '->' + byId[l.to].type] = true;
   }
   var want = ['aws_vpc->aws_subnet', 'aws_subnet->aws_route_table',
@@ -322,12 +326,16 @@ check('resources beside the columns are grouped by type', function () {
   if (h.indexOf('class="cat"') === -1) throw new Error('no category groups rendered');
   var headings = {}, re = /<span>([^<]*)<\/span>\s*<em>(\d+)<\/em><\/h4>/g, m;
   while ((m = re.exec(h)) !== null) headings[m[1]] = Number(m[2]);
-  // Instances sit inside their subnet, so what stands beside the columns here
-  // is the storage, the load balancing and the security groups.
-  ['EBS volume', 'Load balancer', 'Security group'].forEach(function (want) {
+  // Instances sit inside their subnet and load balancers have a map of their
+  // own, so what stands beside the columns here is the storage and the
+  // security groups.
+  ['EBS volume', 'Security group'].forEach(function (want) {
     if (!headings[want]) throw new Error('no category for ' + want +
       '; got ' + Object.keys(headings).join(', '));
   });
+  if (headings['Load balancer']) {
+    throw new Error('load balancer listed beside the columns, not drawn as its own map');
+  }
   if (headings['EBS volume'] !== 2) throw new Error('wrong count for EBS volume');
   if (!/<h4>\s*<svg/.test(h)) throw new Error('category heading has no icon');
 });
@@ -536,6 +544,104 @@ check('clearing filters restores every card', function () {
   filter.statuses = new Set();
   renderMap(STATE);
   if (cardCount() !== __all) throw new Error('got ' + cardCount() + ', want ' + __all);
+});
+
+// --- infrastructure that already exists ---------------------------------
+// The platform fixture is applied: every id in it is a real value. That is
+// what real codebases look like, and several of these relationships cannot be
+// seen any other way.
+function platformMap() {
+  for (var i = 0; i < STATE.workspaces.length; i++) {
+    if (STATE.workspaces[i].name === 'platform') return buildMap(STATE.workspaces[i]);
+  }
+  throw new Error('no platform workspace in fixtures');
+}
+
+check('a NAT gateway shows the subnet it sits in', function () {
+  var m = platformMap();
+  var path = tracePath('aws_nat_gateway.main[0]', adjacencyOf(m.links));
+  // The subnet holding it, which is the one the console draws it in...
+  if (!path.nodes.has('aws_subnet.public[0]')) {
+    throw new Error('the subnet holding the gateway is not on its path: ' +
+      Array.from(path.nodes).join(', '));
+  }
+  // ...and the private subnet that reaches the internet through it, which is
+  // a different subnet and a different question.
+  if (!path.nodes.has('aws_subnet.private[0]')) {
+    throw new Error('the subnet routing through the gateway is not on its path');
+  }
+});
+
+check('a route table shows the subnets associated with it', function () {
+  var m = platformMap();
+  var path = tracePath('aws_route_table.public', adjacencyOf(m.links));
+  ['aws_subnet.public[0]', 'aws_subnet.public[1]'].forEach(function (id) {
+    if (!path.nodes.has(id)) throw new Error(id + ' missing from the route table path');
+  });
+});
+
+check('a load balancer is drawn as its own map, not a list', function () {
+  filter.text = ''; filter.statuses = new Set();
+  renderMap(STATE);
+  var h = __sinks['mapbody'] || '';
+  if (h.indexOf('class="vpc-panel lb-panel"') === -1) {
+    throw new Error('no load balancer map rendered');
+  }
+  ['Load balancer', 'Listeners', 'Rules', 'Target groups', 'Targets'].forEach(function (col) {
+    if (h.indexOf('>' + col + ' ') === -1 && h.indexOf('>' + col + '<') === -1) {
+      throw new Error('load balancer map has no ' + col + ' column');
+    }
+  });
+  // Two listeners on one balancer differ only by port, and two rules only by
+  // what they match, so the cards have to actually print those.
+  if (h.indexOf('HTTP:80') === -1) throw new Error('listener card does not show its port');
+  if (h.indexOf('/api/*') === -1) throw new Error('rule card does not show what it matches');
+  if (h.indexOf('internet-facing') === -1) throw new Error('load balancer does not show its scheme');
+});
+
+check('the load balancer map runs listener -> rule -> target group -> target', function () {
+  var m = platformMap();
+  var stacks = [];
+  for (var i = 0; i < m.panels.length; i++) {
+    stacks = stacks.concat(m.panels[i].lbs || []);
+  }
+  if (stacks.length !== 1) throw new Error('want one load balancer, got ' + stacks.length);
+  var s = stacks[0];
+  if (s.listeners.length !== 1) throw new Error('want one listener');
+  if (s.rules.length !== 1) throw new Error('want one rule');
+  if (s.groups.length !== 2) throw new Error('want two target groups, got ' + s.groups.length);
+  if (s.targets.length !== 3) throw new Error('want three targets, got ' + s.targets.length);
+
+  // Following the balancer forwards has to arrive at the instances serving it.
+  var path = tracePath(s.lb.id, adjacencyOf(m.links));
+  ['aws_lb_listener.http', 'aws_lb_listener_rule.api', 'aws_lb_target_group.web',
+   'aws_lb_target_group.api', 'aws_instance.web[0]', 'aws_instance.api'].forEach(function (id) {
+    if (!path.nodes.has(id)) throw new Error(id + ' is not on the load balancer path');
+  });
+});
+
+check('listeners and rules are told apart by port and match', function () {
+  var m = platformMap();
+  var s = m.panels[0].lbs[0];
+  if (s.listeners[0].meta.port !== '80') throw new Error('listener lost its port');
+  if (s.listeners[0].meta.protocol !== 'HTTP') throw new Error('listener lost its protocol');
+  if (s.rules[0].meta.match !== '/api/*') {
+    throw new Error('rule lost what it matches: ' + s.rules[0].meta.match);
+  }
+});
+
+check('what the load balancer map draws is not also listed beside the columns', function () {
+  var m = platformMap();
+  var beside = {};
+  for (var i = 0; i < m.panels.length; i++) {
+    for (var j = 0; j < m.panels[i].inVpc.length; j++) beside[m.panels[i].inVpc[j].type] = true;
+  }
+  ['aws_lb', 'aws_lb_listener', 'aws_lb_listener_rule', 'aws_lb_target_group']
+    .forEach(function (t) {
+      if (beside[t]) throw new Error(t + ' is listed beside the columns as well');
+    });
+  // The security groups are not part of that map, so they stay.
+  if (!beside['aws_security_group']) throw new Error('security groups went missing');
 });
 
 if (__failures) {

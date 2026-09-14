@@ -98,6 +98,8 @@
   .vpc-head .title { font-weight: 700; }
   .vpc-head .sub { color: var(--muted); font-family: var(--mono); font-size: 12px; }
   .cols { display: grid; grid-template-columns: repeat(4, minmax(190px, 1fr)); }
+  .lb-panel .cols { grid-template-columns: repeat(5, minmax(165px, 1fr)); }
+  .lb-panel .vpc-head { background: var(--lb-head, transparent); }
   .col { padding: 12px 14px 16px; border-right: 1px solid var(--line-soft); min-width: 0; }
   .col:last-child { border-right: none; }
   .col > h3, .others h3 { margin: 0 0 10px; font-size: 10.5px; color: var(--muted);
@@ -280,6 +282,7 @@ const LABELS = {
   aws_instance: 'EC2 instance', aws_ebs_volume: 'EBS volume',
   aws_volume_attachment: 'Volume attachment', aws_lb: 'Load balancer',
   aws_lb_target_group: 'Target group', aws_lb_listener: 'Listener',
+  aws_lb_listener_rule: 'Listener rule',
   aws_lb_target_group_attachment: 'Target attachment',
   aws_db_instance: 'RDS instance', aws_autoscaling_group: 'Auto Scaling group',
   aws_launch_template: 'Launch template',
@@ -291,7 +294,7 @@ const GATEWAYS = new Set(['aws_internet_gateway', 'aws_nat_gateway',
   'aws_vpc_endpoint', 'aws_dx_gateway']);
 // Routes and associations are drawn as ribbons rather than cards of their own.
 const GLUE = new Set(['aws_route', 'aws_route_table_association',
-  'aws_main_route_table_association']);
+  'aws_main_route_table_association', 'aws_lb_target_group_attachment']);
 
 // Service glyphs drawn in the AWS category colors: a rounded tile per service
 // group with a simple white pictogram. Hand-authored so the binary stays
@@ -315,6 +318,7 @@ const GLYPH = {
   aws_lb:               [CAT.net, `<circle cx="12" cy="7" r="1.9" ${S}/><circle cx="6.5" cy="17" r="1.9" ${S}/><circle cx="12" cy="17" r="1.9" ${S}/><circle cx="17.5" cy="17" r="1.9" ${S}/><path d="M12 8.9v2.6M12 11.5H6.5v3.6M12 11.5h5.5v3.6M12 11.5v3.6" ${S}/>`],
   aws_lb_target_group:  [CAT.net, `<circle cx="12" cy="12" r="6" ${S}/><circle cx="12" cy="12" r="2.6" ${S}/>`],
   aws_lb_listener:      [CAT.net, `<path d="M6 12h6M9.5 8.5L6 12l3.5 3.5" ${S}/><rect x="13" y="7.5" width="6" height="9" rx="1.5" ${S}/>`],
+  aws_lb_listener_rule:  [CAT.net, `<path d="M5 8h6l3 4 5 0M5 16h6l3-4" ${S}/><circle cx="18.5" cy="12" r="1.5" fill="#fff"/>`],
   aws_lb_target_group_attachment: [CAT.net, `<path d="M10 9.5H8a2.5 2.5 0 000 5h2M14 9.5h2a2.5 2.5 0 010 5h-2M9 12h6" ${S}/>`],
   aws_instance:         [CAT.compute, `<rect x="7" y="7" width="10" height="10" rx="1.4" ${S}/><path d="M10 4.8v2.2M14 4.8v2.2M10 17v2.2M14 17v2.2M4.8 10H7M4.8 14H7M17 10h2.2M17 14h2.2" ${S}/>`],
   aws_launch_template:  [CAT.compute, `<path d="M7 5.5h7l3.5 3.5v9.5H7z" ${S}/><path d="M13.6 5.5V9h3.6" ${S}/>`],
@@ -393,6 +397,15 @@ function buildMap(ws) {
   }
   const depsOfType = (id, pred) =>
     (deps.get(id) || []).filter(d => nodes.has(d) && pred(nodes.get(d)));
+  // The same edges read backwards: a load balancer does not mention its
+  // listeners, the listeners mention it.
+  const dependents = new Map();
+  for (const e of ws.edges || []) {
+    if (!dependents.has(e.to)) dependents.set(e.to, []);
+    dependents.get(e.to).push(e.from);
+  }
+  const usedByType = (id, pred) =>
+    (dependents.get(id) || []).filter(d => nodes.has(d) && pred(nodes.get(d)));
 
   // Links are directed, and point the way traffic and containment read across
   // the columns: the VPC holds its subnets, a subnet is associated with a
@@ -401,8 +414,8 @@ function buildMap(ws) {
   // A link is either a hop of the VPC path — which reads end to end — or a
   // plain relationship between two resources, which does not.
   const links = [];
-  const add = (from, to, flow) => {
-    if (from && to && from !== to) links.push({ from, to, flow: !!flow });
+  const add = (from, to, flow, panel) => {
+    if (from && to && from !== to) links.push({ from, to, flow: !!flow, panel: panel || null });
   };
 
   for (const [id, n] of nodes) {
@@ -507,6 +520,16 @@ function buildMap(ws) {
       } else p.inVpc.push(n);
     }
   }
+  // A NAT gateway lives in a subnet. That is a relationship rather than a hop
+  // of the route path -- traffic reaches it through a route table, not by
+  // leaving the subnet holding it -- so it is drawn as a plain link, which is
+  // one hop and does not run on into the gateway's own routes.
+  for (const p of panels) {
+    for (const g of p.gateways) {
+      for (const s of depsOfType(g.id, m => m.type === 'aws_subnet')) add(s, g.id);
+    }
+  }
+
   // Resources beside the columns are joined to whatever they actually use, so
   // hovering an instance shows the subnet holding it, its interfaces, its
   // volumes and its security groups. The column flow is left alone: a link is
@@ -532,6 +555,7 @@ function buildMap(ws) {
   // route tables on that transit gateway. Membership spreads outwards along
   // real connections, so this pulls in what is wired to the VPC and leaves an
   // unattached address where it actually is — in the region.
+  const bySort = (a, b) => a.id.localeCompare(b.id);
   const placed = new Map();
   for (const p of panels) {
     for (const n of [...p.subnets, ...p.routeTables, ...p.gateways, ...p.inVpc,
@@ -564,6 +588,56 @@ function buildMap(ws) {
   }
   others = others.filter(n => !placed.has(n.id));
 
+  // A load balancer is a path in its own right, and the console gives it a map
+  // of its own for the same reason this does: listing a balancer, its
+  // listeners, its rules and its target groups side by side says nothing about
+  // which rule reaches which group. Read as columns, it does.
+  panels.forEach((p, pi) => {
+    p.lbs = [];
+    for (const lb of p.inVpc.filter(n => n.type === 'aws_lb')) {
+      const key = 'lb-' + pi + '-' + p.lbs.length;
+      const listeners = usedByType(lb.id, m => m.type === 'aws_lb_listener').map(id => nodes.get(id));
+      const rules = [], groups = new Map(), targets = [];
+      for (const l of listeners) {
+        add(lb.id, l.id, true, key);
+        // A listener's own default action names a target group directly; that
+        // is the path taken when no rule matches.
+        for (const tg of depsOfType(l.id, m => m.type === 'aws_lb_target_group')) {
+          groups.set(tg, true); add(l.id, tg, true, key);
+        }
+        for (const rid of usedByType(l.id, m => m.type === 'aws_lb_listener_rule')) {
+          rules.push(nodes.get(rid));
+          add(l.id, rid, true, key);
+          for (const tg of depsOfType(rid, m => m.type === 'aws_lb_target_group')) {
+            groups.set(tg, true); add(rid, tg, true, key);
+          }
+        }
+      }
+      // Targets hang off the attachment that binds them, which is drawn as the
+      // line rather than as a card, the way routes and associations are.
+      for (const tg of groups.keys()) {
+        for (const aid of usedByType(tg, m => m.type === 'aws_lb_target_group_attachment')) {
+          for (const t of depsOfType(aid, m => m.type !== 'aws_lb_target_group')) {
+            add(tg, t, true, key);
+            if (!targets.includes(t)) targets.push(t);
+          }
+        }
+      }
+      p.lbs.push({ key, lb, listeners: listeners.sort(bySort), rules: rules.sort(bySort),
+                   groups: [...groups.keys()].map(id => nodes.get(id)).sort(bySort),
+                   targets: targets.map(id => nodes.get(id)).sort(bySort) });
+    }
+    // What the load balancer map draws is not also listed beside the columns.
+    const claimed = new Set();
+    for (const stack of p.lbs) {
+      claimed.add(stack.lb.id);
+      for (const list of [stack.listeners, stack.rules, stack.groups]) {
+        for (const n of list) claimed.add(n.id);
+      }
+    }
+    p.inVpc = p.inVpc.filter(n => !claimed.has(n.id));
+  });
+
   // What genuinely is not part of a VPC still lives somewhere: an SSM
   // parameter belongs to the region, an IAM role to the account.
   const scopes = { region: [], network: [], account: [], external: [] };
@@ -572,7 +646,6 @@ function buildMap(ws) {
   scopes.region.push(...scopes.network);
   scopes.network = [];
 
-  const bySort = (a, b) => a.id.localeCompare(b.id);
   for (const p of panels) {
     p.subnets.sort(bySort); p.routeTables.sort(bySort);
     p.gateways.sort(bySort); p.inVpc.sort(bySort);
@@ -580,9 +653,17 @@ function buildMap(ws) {
   others.sort(bySort);
   for (const list of Object.values(scopes)) list.sort(bySort);
 
+  // A pair the load balancer map draws is drawn there, in its own columns. The
+  // general pass reached some of the same pairs, and keeping both would double
+  // every line -- and leave the copy without a panel free to attach itself to
+  // whichever card happened to be rendered first.
+  const inPanel = new Set();
+  for (const l of links) if (l.panel) inPanel.add(l.from + ' ' + l.to);
+
   const byPair = new Map();
   for (const l of links) {
-    const key = l.from + ' ' + l.to;
+    if (!l.panel && inPanel.has(l.from + ' ' + l.to)) continue;
+    const key = (l.panel || '') + ' ' + l.from + ' ' + l.to;
     const prev = byPair.get(key);
     if (!prev) byPair.set(key, l);
     else if (l.flow) prev.flow = true; // a pair that is ever a hop stays one
@@ -685,6 +766,56 @@ function groupedHTML(list, stacked) {
   return stacked ? blocks : `<div class="cats">${blocks}</div>`;
 }
 
+// AWS computes a load balancer's scheme, so a workspace that has never been
+// applied does not have it. The flag the configuration did set says the same
+// thing, and is there either way.
+function schemeOf(lb) {
+  if (lb.meta?.scheme) return lb.meta.scheme;
+  if (lb.meta?.internal === 'true') return 'internal';
+  if (lb.meta?.internal === 'false') return 'internet-facing';
+  return '';
+}
+
+// lbPanelHTML draws a load balancer the way the console's own resource map
+// does: the balancer, what it listens on, the rules that choose between target
+// groups, the groups themselves, and what is actually behind them.
+function lbPanelHTML(stack, m, vis) {
+  const keep = list => list.filter(n => vis.has(n.id));
+  const listeners = keep(stack.listeners), rules = keep(stack.rules);
+  const groups = keep(stack.groups), targets = keep(stack.targets);
+  const lbShown = vis.has(stack.lb.id);
+  if (!lbShown && !listeners.length && !rules.length && !groups.length && !targets.length) {
+    return ''; // nothing in this load balancer survived the filter
+  }
+  // A listener is told apart by the port it answers on, a rule by what it
+  // matches, a target group by where it forwards. Without those the columns
+  // would be rows of identically named cards.
+  const portOf = n => [n.meta?.protocol, n.meta?.port].filter(Boolean).join(':');
+  const ruleOf = n => [n.meta?.priority ? '#' + n.meta.priority : '', n.meta?.match]
+    .filter(Boolean).join(' · ');
+  const col = (title, items, detail) => `<div class="col">
+      <h3>${title} <span>(${items.length})</span></h3>
+      ${items.length ? items.map(n => cardHTML(n, detail ? detail(n) : undefined)).join('')
+                     : '<div class="empty">none</div>'}
+    </div>`;
+
+  return `<div class="vpc-panel lb-panel" data-panel="${esc(stack.key)}">
+    <div class="vpc-head">
+      <span class="title">${esc(stack.lb.meta?.name || stack.lb.name)}</span>
+      <span class="sub">${esc([stack.lb.meta?.spec, schemeOf(stack.lb)]
+        .filter(Boolean).join(' · '))}</span>
+    </div>
+    <div class="cols">
+      <div class="col"><h3>Load balancer</h3>${
+        lbShown ? cardHTML(stack.lb) : '<div class="empty">none</div>'}</div>
+      ${col('Listeners', listeners, portOf)}
+      ${col('Rules', rules, ruleOf)}
+      ${col('Target groups', groups, portOf)}
+      ${col('Targets', targets)}
+    </div>
+  </div>`;
+}
+
 function panelHTML(p, m, vis) {
   const keep = list => list.filter(n => vis.has(n.id));
   const subnets = keep(p.subnets), routeTables = keep(p.routeTables);
@@ -732,7 +863,8 @@ function panelHTML(p, m, vis) {
       ${col('Route tables', routeTables)}
       ${col('Network connections', gateways)}
     </div>
-  </div>` + (inVpc.length ? `<div class="others">
+  </div>` + (p.lbs || []).map(stack => lbPanelHTML(stack, m, vis)).join('')
+    + (inVpc.length ? `<div class="others">
       <h3>In this VPC <span>(${inVpc.length})</span></h3>
       ${groupedHTML(inVpc)}
     </div>` : '');
@@ -805,16 +937,23 @@ function drawRibbons(maps) {
   const base = scroll.getBoundingClientRect();
   svg.setAttribute('width', scroll.scrollWidth);
   svg.setAttribute('height', scroll.scrollHeight);
-  const box = id => {
-    const el = scroll.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+  // An instance appears both in the subnet holding it and in the targets of
+  // the load balancer reaching it. A link belonging to one panel has to find
+  // the copy in that panel, or every line would run to whichever was drawn
+  // first.
+  const box = (id, panel) => {
+    const within = panel
+      ? scroll.querySelector(`[data-panel="${CSS.escape(panel)}"] .card[data-id="${CSS.escape(id)}"]`)
+      : null;
+    const el = within || scroll.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
     if (!el) return null;
     const r = el.getBoundingClientRect();
     return { x: r.left - base.left + scroll.scrollLeft,
              y: r.top - base.top + scroll.scrollTop, w: r.width, h: r.height };
   };
   for (const m of maps) {
-    for (const { from, to } of m.links) {
-      const A = box(from), B = box(to);
+    for (const { from, to, panel } of m.links) {
+      const A = box(from, panel), B = box(to, panel);
       if (!A || !B) continue;
       // The arrow always lands on the target, whichever side it sits on.
       let x1, x2;
