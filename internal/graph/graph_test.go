@@ -157,3 +157,71 @@ func TestStripIndexes(t *testing.T) {
 		}
 	}
 }
+
+// The platform fixture is infrastructure that already exists: every id in it
+// is a real value rather than "known after apply". That is the case the other
+// fixtures cannot cover, and the one real codebases are always in.
+func TestBuildPlatformPlanReadsExistingInfrastructure(t *testing.T) {
+	g := Build(loadFixture(t, "testdata/platform_plan.json"))
+
+	if len(g.Nodes) != 35 {
+		t.Errorf("got %d nodes, want 35", len(g.Nodes))
+	}
+	for _, n := range g.Nodes {
+		if n.Status != ingest.StatusExisting {
+			t.Errorf("%s has status %q, want existing", n.ID, n.Status)
+		}
+	}
+	// A NAT gateway sits in a subnet, and the plan says which one.
+	edges := map[Edge]bool{}
+	for _, e := range g.Edges {
+		edges[e] = true
+	}
+	if !edges[Edge{From: "aws_nat_gateway.main[0]", To: "aws_subnet.public[0]"}] {
+		t.Error("nat gateway is not connected to the subnet holding it")
+	}
+	if !edges[Edge{From: "aws_lb_listener.http", To: "aws_lb_target_group.web"}] {
+		t.Error("listener is not connected to its default target group")
+	}
+}
+
+// Wiring a codebase through locals hides it from plan JSON, and Terraform's
+// own graph is transitively reduced, so neither can be relied on alone. Once
+// infrastructure exists the attributes say what is connected to what, in ids
+// that do not care how the configuration was written. Dropping the entire
+// configuration is the strongest form of that test: whatever survives came
+// from the resources themselves.
+func TestIDsRecoverEdgesWithoutConfiguration(t *testing.T) {
+	plan := loadFixture(t, "testdata/platform_plan.json")
+	plan.Config = nil
+	g := Build(plan)
+
+	edges := map[Edge]bool{}
+	for _, e := range g.Edges {
+		edges[e] = true
+	}
+	for _, want := range []Edge{
+		{From: "aws_route_table_association.public[0]", To: "aws_subnet.public[0]"},
+		{From: "aws_route_table_association.public[0]", To: "aws_route_table.public"},
+		{From: "aws_route_table_association.private[1]", To: "aws_route_table.private[1]"},
+		{From: "aws_nat_gateway.main[0]", To: "aws_subnet.public[0]"},
+		{From: "aws_nat_gateway.main[0]", To: "aws_eip.nat[0]"},
+		{From: "aws_route.private_nat[0]", To: "aws_nat_gateway.main[0]"},
+		{From: "aws_instance.web[0]", To: "aws_subnet.private[0]"},
+		{From: "aws_instance.web[0]", To: "aws_security_group.app"},
+		{From: "aws_lb.app", To: "aws_subnet.public[0]"},
+		{From: "aws_lb_listener.http", To: "aws_lb.app"},
+		{From: "aws_lb_target_group_attachment.web[0]", To: "aws_instance.web[0]"},
+	} {
+		if !edges[want] {
+			t.Errorf("edge not recovered from ids: %s -> %s", want.From, want.To)
+		}
+	}
+	// Matching must not invent relationships: an IAM role shares no id with
+	// anything in the network.
+	for _, e := range g.Edges {
+		if e.From == "aws_iam_role.app" || e.To == "aws_iam_role.app" {
+			t.Errorf("unexpected edge touching the iam role: %s -> %s", e.From, e.To)
+		}
+	}
+}

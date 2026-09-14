@@ -98,13 +98,14 @@ func BuildWithDOT(plan *tfjson.Plan, dot []byte) *Graph {
 		instances[cfgAddr] = append(instances[cfgAddr], rc.Address)
 	}
 
+	seen := map[Edge]bool{}
 	if plan.Config != nil && plan.Config.RootModule != nil {
 		r := &resolver{
 			modules:   map[string]*tfjson.ConfigModule{},
 			parents:   map[string]parentRef{},
 			data:      map[string]*tfjson.ConfigResource{},
 			instances: instances,
-			seen:      map[Edge]bool{},
+			seen:      seen,
 			cfgPairs:  map[string]bool{},
 			graph:     g,
 		}
@@ -115,6 +116,9 @@ func BuildWithDOT(plan *tfjson.Plan, dot []byte) *Graph {
 			r.applyDOTDeps(DependenciesFromDOT(dot, isResource))
 		}
 	}
+	// Infrastructure that already exists states its own wiring, in ids that
+	// no longer depend on how the configuration was written.
+	g.addIDEdges(plan, seen)
 
 	sort.Slice(g.Nodes, func(i, j int) bool { return g.Nodes[i].ID < g.Nodes[j].ID })
 	sort.Slice(g.Edges, func(i, j int) bool {
@@ -610,6 +614,110 @@ func (g *Graph) Print(w io.Writer) {
 		fmt.Fprintf(w, "\nDependencies (%d):\n", len(g.Edges))
 		for _, e := range g.Edges {
 			fmt.Fprintf(w, "  %s -> %s\n", e.From, e.To)
+		}
+	}
+}
+
+// --- relationships the resources state themselves ---------------------------
+
+// minIDLen keeps short attribute values out of the id matching below. Every
+// real id or ARN is far longer than this; the bound exists so that a value
+// like "80" or "tcp" can never be mistaken for one.
+const minIDLen = 8
+
+// changeAttrs is a resource's attributes as the plan leaves them: what it will
+// look like after apply, or — for something being destroyed, which has no
+// after — what it looks like now.
+func changeAttrs(rc *tfjson.ResourceChange) map[string]interface{} {
+	if m, ok := rc.Change.After.(map[string]interface{}); ok && m != nil {
+		return m
+	}
+	if m, ok := rc.Change.Before.(map[string]interface{}); ok && m != nil {
+		return m
+	}
+	return nil
+}
+
+// idOwners maps every id and ARN in the plan back to the resource that owns
+// it. Once infrastructure exists these are concrete values, which is what
+// makes matching against them a fact rather than a guess.
+func idOwners(plan *tfjson.Plan) map[string]string {
+	owners := map[string]string{}
+	for _, rc := range plan.ResourceChanges {
+		if rc.Mode != tfjson.ManagedResourceMode || rc.Change == nil {
+			continue
+		}
+		attrs := changeAttrs(rc)
+		for _, key := range []string{"id", "arn"} {
+			if s, ok := attrs[key].(string); ok && len(s) >= minIDLen {
+				owners[s] = rc.Address
+			}
+		}
+	}
+	return owners
+}
+
+// collectStrings gathers every string in an attribute tree, so a reference
+// nested inside a block — a listener's default_action[0].target_group_arn —
+// is found as readily as a top-level subnet_id.
+func collectStrings(v interface{}, out map[string]bool) {
+	switch t := v.(type) {
+	case string:
+		if len(t) >= minIDLen {
+			out[t] = true
+		}
+	case []interface{}:
+		for _, e := range t {
+			collectStrings(e, out)
+		}
+	case map[string]interface{}:
+		for _, e := range t {
+			collectStrings(e, out)
+		}
+	}
+}
+
+// addIDEdges draws what the resources say about each other. A subnet_id whose
+// value is some subnet's id IS that subnet, no matter how the configuration
+// routed it there — through a local, a module output, or a variable the plan
+// never records.
+//
+// This is the difference between planning an empty workspace and looking at
+// infrastructure that exists. Before apply these attributes are unknown and
+// nothing matches, so the configuration remains the only source. Afterwards
+// they are the most reliable source there is, and the only one that survives
+// wiring terradune cannot otherwise see.
+func (g *Graph) addIDEdges(plan *tfjson.Plan, seen map[Edge]bool) {
+	owners := idOwners(plan)
+	for _, rc := range plan.ResourceChanges {
+		if rc.Mode != tfjson.ManagedResourceMode || rc.Change == nil {
+			continue
+		}
+		attrs := changeAttrs(rc)
+		if attrs == nil {
+			continue
+		}
+		values := map[string]bool{}
+		for key, v := range attrs {
+			if key == "id" || key == "arn" {
+				continue // the resource's own name, not a reference to another
+			}
+			collectStrings(v, values)
+		}
+		var targets []string
+		for value := range values {
+			if owner, ok := owners[value]; ok && owner != rc.Address {
+				targets = append(targets, owner)
+			}
+		}
+		sort.Strings(targets)
+		for _, to := range targets {
+			e := Edge{From: rc.Address, To: to}
+			if seen[e] {
+				continue
+			}
+			seen[e] = true
+			g.Edges = append(g.Edges, e)
 		}
 	}
 }
