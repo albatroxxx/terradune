@@ -29,6 +29,9 @@ jobs:
           go-version-file: go.mod
           check-latest: true
       - run: go build ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - run: go vet ./...
       - name: Check formatting
         run: |

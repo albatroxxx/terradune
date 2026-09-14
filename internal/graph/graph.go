@@ -13,7 +13,7 @@ import (
 
 	tfjson "github.com/hashicorp/terraform-json"
 
-	"github.com/AsysGupta/terradune/internal/ingest"
+	"github.com/albatroxxx/terradune/internal/ingest"
 )
 
 // Node is one resource instance in the diagram.

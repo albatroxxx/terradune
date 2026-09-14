@@ -1,7 +1,10 @@
 package graph
 
 import (
+	"log"
+
 	tfjson "github.com/hashicorp/terraform-json"
+	"github.com/hashicorp/terraform-json/sanitize"
 )
 
 // Detail is everything the plan knows about one resource instance. It is kept
@@ -26,6 +29,12 @@ func BuildDetails(plan *tfjson.Plan) map[string]*Detail {
 		if rc.Mode != tfjson.ManagedResourceMode || rc.Change == nil {
 			continue
 		}
+		change, err := sanitize.SanitizeChange(rc.Change, "(sensitive value)")
+		if err != nil {
+			// Fail closed: an unserializable change must never fall back to raw values.
+			log.Print("terradune: resource details unavailable: sanitization failed")
+			continue
+		}
 		d := &Detail{
 			Address: rc.Address,
 			Type:    rc.Type,
@@ -33,10 +42,10 @@ func BuildDetails(plan *tfjson.Plan) map[string]*Detail {
 			Module:  rc.ModuleAddress,
 			Status:  string(statusOf(rc.Change.Actions)),
 		}
-		if m, ok := rc.Change.Before.(map[string]interface{}); ok {
+		if m, ok := change.Before.(map[string]interface{}); ok {
 			d.Before = m
 		}
-		if m, ok := rc.Change.After.(map[string]interface{}); ok {
+		if m, ok := change.After.(map[string]interface{}); ok {
 			d.After = m
 		}
 		d.Unknown = unknownKeys(rc.Change.AfterUnknown)

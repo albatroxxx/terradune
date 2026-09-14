@@ -11,7 +11,7 @@ import (
 
 	tfjson "github.com/hashicorp/terraform-json"
 
-	"github.com/AsysGupta/terradune/internal/graph"
+	"github.com/albatroxxx/terradune/internal/graph"
 )
 
 // jscPaths are where JavaScriptCore's shell lives on macOS. The page is
@@ -30,6 +30,9 @@ func findJSC() string {
 		}
 	}
 	if p, err := exec.LookPath("jsc"); err == nil {
+		return p
+	}
+	if p, err := exec.LookPath("node"); err == nil {
 		return p
 	}
 	return ""
@@ -88,8 +91,21 @@ func stateFromFixtures(t *testing.T) []byte {
 func TestPageRendersHeadlessly(t *testing.T) {
 	jsc := findJSC()
 	if jsc == "" {
-		t.Skip("no JavaScriptCore shell available")
+		t.Fatal("page tests require JavaScriptCore or Node.js")
 	}
+	runPageChecks(t, jsc)
+}
+
+func TestPageRendersWithNode(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node.js is not installed; the primary page test still requires a JS runtime")
+	}
+	runPageChecks(t, node)
+}
+
+func runPageChecks(t *testing.T, jsc string) {
+	t.Helper()
 
 	page, err := static.ReadFile("index.html")
 	if err != nil {
@@ -110,10 +126,19 @@ func TestPageRendersHeadlessly(t *testing.T) {
 	}
 
 	var b strings.Builder
+	if strings.HasPrefix(filepath.Base(jsc), "node") {
+		b.WriteString("var print = console.log;\n")
+	}
 	b.Write(stub)
 	b.WriteString("\nvar STATE = ")
 	b.Write(stateFromFixtures(t))
 	b.WriteString(";\n")
+	review, err := static.ReadFile("assets/review.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.Write(review)
+	b.WriteString("\n")
 	b.Write(script)
 	b.WriteString("\n")
 	b.Write(checks)

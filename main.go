@@ -17,10 +17,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/AsysGupta/terradune/internal/graph"
-	"github.com/AsysGupta/terradune/internal/ingest"
-	"github.com/AsysGupta/terradune/internal/server"
-	"github.com/AsysGupta/terradune/internal/watch"
+	"github.com/albatroxxx/terradune/internal/graph"
+	"github.com/albatroxxx/terradune/internal/ingest"
+	"github.com/albatroxxx/terradune/internal/server"
+	"github.com/albatroxxx/terradune/internal/watch"
 )
 
 var version = "dev"
