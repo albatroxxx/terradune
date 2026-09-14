@@ -11,8 +11,8 @@ function __classList() {
   var on = {};
   return {
     _on: on,
-    add(c) { on[c] = true; },
-    remove(c) { delete on[c]; },
+    add(...classes) { classes.forEach(c => { on[c] = true; }); },
+    remove(...classes) { classes.forEach(c => { delete on[c]; }); },
     contains(c) { return !!on[c]; },
     toggle(c, force) {
       if (force === true) { on[c] = true; return true; }
@@ -103,6 +103,7 @@ function __indexCards(html) {
                  right: idx * 200 + 160, bottom: (idx % 12) * 40 + 30 };
       };
     })(i);
+    el._main.getBoundingClientRect = el.getBoundingClientRect;
     __cards.push(el);
   }
 }
@@ -113,14 +114,17 @@ function __cardFor(sel) {
   var m = /data-id="((?:[^"\\]|\\.)*)"/.exec(sel || '');
   if (!m) return null;
   var want = m[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  var ws = /data-ws="((?:[^"\\]|\\.)*)"/.exec(sel || '');
+  var workspace = ws && ws[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
   for (var i = 0; i < __cards.length; i++) {
-    if (__cards[i].dataset.id === want) return __cards[i];
+    if (__cards[i].dataset.id === want && (!ws || __cards[i].dataset.ws === workspace)) return __cards[i];
   }
   return null;
 }
 
 var document = {
   _els: {},
+  body: __fakeEl('body'),
   getElementById(id) {
     return this._els[id] || (this._els[id] = __fakeEl(id));
   },
@@ -128,7 +132,7 @@ var document = {
   createElement(name) { return __fakeEl(name, name); },
   addEventListener() {},
 };
-var window = { addEventListener() {} };
+var window = __fakeEl('window');
 var CSS = { escape(s) { return String(s).replace(/["\\]/g, '\\$&'); } };
 var EventSource = function () { this.onmessage = null; this.onerror = null; };
 var ELK = function () {

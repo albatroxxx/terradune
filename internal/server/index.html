@@ -287,9 +287,9 @@
   <div class="brand"><img src="/assets/logo.svg" alt="" width="34" height="34"><h1>terradune</h1></div>
   <div id="dot" aria-hidden="true"></div>
   <div class="tabs" role="tablist" aria-label="Views">
-    <button id="tab-review" type="button" class="on" role="tab" aria-selected="true" aria-controls="review">Plan</button>
-    <button id="tab-graph" type="button" role="tab" aria-selected="false" aria-controls="graph" tabindex="-1">Relationships</button>
-    <button id="tab-map" type="button" role="tab" aria-selected="false" aria-controls="map" tabindex="-1">Network</button>
+    <button id="tab-map" type="button" class="on" role="tab" aria-selected="true" aria-controls="map">Resource Map</button>
+    <button id="tab-review" type="button" role="tab" aria-selected="false" aria-controls="review" tabindex="-1">Plan</button>
+    <button id="tab-graph" type="button" role="tab" aria-selected="false" aria-controls="graph" tabindex="-1">Graph</button>
   </div>
   <span id="meta" role="status"></span>
 </header>
@@ -301,8 +301,30 @@
   <span class="sep"></span>
   <span id="chips"></span>
   <button id="clear" type="button" hidden>Clear filters</button>
-  <span id="pinned" hidden></span>
   <span class="txt" id="shown"></span>
+</div>
+<div id="view-tools">
+  <strong id="view-name">Resource Map</strong>
+  <span id="pinned" role="status" hidden></span>
+  <button id="release-pin" class="icon-button" type="button" aria-label="Release pinned path" title="Release pinned path" hidden>&times;</button>
+  <div id="view-actions">
+    <div id="legend" class="closed">
+      <button id="legend-btn" type="button" aria-expanded="false" aria-controls="legend-items">Legend</button>
+      <div class="items" id="legend-items">
+        <h3>Resource actions</h3>
+        <div><i class="legend-action create">+</i><span>Create</span></div>
+        <div><i class="legend-action update">~</i><span>Update</span></div>
+        <div><i class="legend-action replace">&#8644;</i><span>Replace</span></div>
+        <div><i class="legend-action destroy">&#8722;</i><span>Destroy</span></div>
+        <div><i class="legend-action existing">=</i><span>Unchanged</span></div>
+        <h3>Connections</h3>
+        <div><i class="legend-line flow"></i><span>Network path</span></div>
+        <div><i class="legend-line association"></i><span>Direct association</span></div>
+        <div><i class="legend-selected"></i><span>Pinned resource</span></div>
+      </div>
+    </div>
+    <button id="expand-view" class="icon-button" type="button" aria-pressed="false" aria-label="Expand view" title="Expand view">&#9974;</button>
+  </div>
 </div>
 <section id="review" role="tabpanel" aria-labelledby="tab-review">
   <aside class="service-rail" aria-label="AWS services"><h2>Services</h2><nav id="service-nav" aria-label="Filter by service"></nav></aside>
@@ -337,16 +359,6 @@
   </div>
   <div class="dr-body" id="dr-body"></div>
 </dialog>
-<div id="legend" class="closed">
-  <div class="items" id="legend-items">
-    <div><i style="background:var(--create-bg);border-color:var(--create-bd)"></i> will be created</div>
-    <div><i style="background:var(--existing-bg);border-color:var(--existing-bd)"></i> already exists</div>
-    <div><i style="background:var(--update-bg);border-color:var(--update-bd)"></i> will change</div>
-    <div><i style="background:var(--replace-bg);border-color:var(--replace-bd)"></i> will be replaced</div>
-    <div><i style="background:var(--destroy-bg);border-color:var(--destroy-bd)"></i> will be destroyed</div>
-  </div>
-  <button id="legend-btn" type="button" aria-expanded="false" aria-controls="legend-items">Legend</button>
-</div>
 
 <script src="/assets/elk.bundled.js"></script>
 <script src="/assets/review.js"></script>
@@ -630,7 +642,7 @@ function buildMap(ws) {
       if (subs.length === 1) {
         if (!p.contents.has(subs[0])) p.contents.set(subs[0], []);
         p.contents.get(subs[0]).push(n);
-        add(subs[0], n.id); // nested, so no ribbon is drawn — but the path still runs through it
+        add(subs[0], n.id);
       } else p.inVpc.push(n);
     }
   }
@@ -791,7 +803,7 @@ function buildMap(ws) {
   }
   const unique = [...byPair.values()];
   const region = [...nodes.values()].find(n => n.meta?.region)?.meta.region || '';
-  return { panels, others, scopes, region, links: unique, nodes, subnetPublic };
+  return { workspace: ws.name, panels, others, scopes, region, links: unique, nodes, subnetPublic };
 }
 
 // ---------- render map --------------------------------------------------
@@ -1048,18 +1060,65 @@ function renderMap(state) {
         ? 'Nothing here matches the current filter.' : 'No resources in this plan.'}</div>`;
     }
     return `<section class="ws">${head}${err}${inner}</section>`;
-  }).join('') + '<div class="hint">Routes and route-table associations are drawn as the connecting lines rather than as cards.</div>';
+  }).join('');
 
   $('shown').textContent = filterActive() ? `${shown} of ${total} shown` : `${total} resources`;
   drawRibbons(maps);
   wireHover(maps);
 }
 
-const RIBBON_DIM = '#c9d0d9', RIBBON_HOT = '#3d6ea8';
+const RIBBON_HOT = '#17654f', RIBBON_REL = '#496b96';
+
+// Prefer short orthogonal paths; longer associations can use clear card gutters.
+function ribbonRoute(A, B, obstacles) {
+  const ports = r => [
+    [{x: r.x, y: r.y + r.h / 2}, {x: r.x - 10, y: r.y + r.h / 2}],
+    [{x: r.x + r.w, y: r.y + r.h / 2}, {x: r.x + r.w + 10, y: r.y + r.h / 2}],
+    [{x: r.x + r.w / 2, y: r.y}, {x: r.x + r.w / 2, y: r.y - 10}],
+    [{x: r.x + r.w / 2, y: r.y + r.h}, {x: r.x + r.w / 2, y: r.y + r.h + 10}],
+  ];
+  const blocked = (a, b) => obstacles.some(r => a.x === b.x
+    ? a.x > r.x && a.x < r.x + r.w && Math.max(a.y, b.y) > r.y && Math.min(a.y, b.y) < r.y + r.h
+    : a.y > r.y && a.y < r.y + r.h && Math.max(a.x, b.x) > r.x && Math.min(a.x, b.x) < r.x + r.w);
+  let best = null, score = Infinity;
+  const consider = points => {
+    const cost = points.slice(1).reduce((sum, p, i) => sum + Math.abs(p.x - points[i].x) + Math.abs(p.y - points[i].y), points.length * 8);
+    if (cost >= score || points.some(p => p.x < 4 || p.y < 4)) return;
+    if (points.slice(1).some((p, i) => blocked(points[i], p))) return;
+    best = points; score = cost;
+  };
+  const starts = ports(A), ends = ports(B);
+  for (const [a, start] of starts) for (const [b, end] of ends) {
+    consider([a, start, {x: end.x, y: start.y}, end, b]);
+    consider([a, start, {x: start.x, y: end.y}, end, b]);
+  }
+  if (!best) {
+    const xs = [...new Set(obstacles.flatMap(r => [r.x - 10, r.x + r.w + 10]))];
+    const ys = [...new Set(obstacles.flatMap(r => [r.y - 10, r.y + r.h + 10]))];
+    for (const [a, start] of starts) for (const [b, end] of ends) {
+      for (const y of ys) consider([a, start, {x: start.x, y}, {x: end.x, y}, end, b]);
+      for (const x of xs) consider([a, start, {x, y: start.y}, {x, y: end.y}, end, b]);
+    }
+    // Cross-panel links may need separate exit and entry lanes.
+    if (!best) for (const [a, start] of starts) for (const [b, end] of ends) {
+      for (const y1 of [A.y - 10, A.y + A.h + 10]) for (const y2 of [B.y - 10, B.y + B.h + 10]) {
+        for (const x of xs) consider([a, start, {x: start.x, y: y1}, {x, y: y1},
+          {x, y: y2}, {x: end.x, y: y2}, end, b]);
+      }
+    }
+  }
+  // Extremely dense layouts retain the association via the outer gutter.
+  if (!best) {
+    const rail = Math.max(4, Math.min(A.x, B.x) - 10);
+    best = [starts[0][0], {x: rail, y: starts[0][0].y}, {x: rail, y: ends[0][0].y}, ends[0][0]];
+  }
+  return best.map((p, i) => `${i ? 'L' : 'M'} ${p.x} ${p.y}`).join(' ');
+}
 
 function drawRibbons(maps) {
   const svg = $('ribbons');
-  svg.innerHTML = '';
+  svg.innerHTML = `<defs><marker id="map-arrow" viewBox="0 0 10 10" refX="10" refY="5"
+    markerWidth="6" markerHeight="6" orient="auto"><polygon points="0,0 10,5 0,10" fill="${RIBBON_HOT}"/></marker></defs>`;
   // Exclude the previous overlay size when measuring after a resize/filter.
   svg.setAttribute('width', '0');
   svg.setAttribute('height', '0');
@@ -1067,40 +1126,42 @@ function drawRibbons(maps) {
   const base = scroll.getBoundingClientRect();
   svg.setAttribute('width', scroll.scrollWidth);
   svg.setAttribute('height', scroll.scrollHeight);
+  const rectOf = el => {
+    const r = el.querySelector('.card-main').getBoundingClientRect();
+    return { x: r.left - base.left + scroll.scrollLeft,
+             y: r.top - base.top + scroll.scrollTop, w: r.width, h: r.height };
+  };
+  const obstacles = [...scroll.querySelectorAll('.card')].map(rectOf);
   // An instance appears both in the subnet holding it and in the targets of
   // the load balancer reaching it. A link belonging to one panel has to find
   // the copy in that panel, or every line would run to whichever was drawn
   // first.
-  const box = (id, panel) => {
+  const box = (id, panel, workspace) => {
+    const selector = `.card[data-ws="${CSS.escape(workspace)}"][data-id="${CSS.escape(id)}"]`;
     const within = panel
-      ? scroll.querySelector(`[data-panel="${CSS.escape(panel)}"] .card[data-id="${CSS.escape(id)}"]`)
+      ? scroll.querySelector(`[data-panel="${CSS.escape(panel)}"] ${selector}`)
       : null;
-    const el = within || scroll.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+    const el = within || scroll.querySelector(selector);
     if (!el) return null;
-    const r = el.getBoundingClientRect();
-    return { x: r.left - base.left + scroll.scrollLeft,
-             y: r.top - base.top + scroll.scrollTop, w: r.width, h: r.height };
+    return rectOf(el);
   };
   for (const m of maps) {
-    for (const { from, to, panel } of m.links) {
-      const A = box(from, panel), B = box(to, panel);
+    for (const { from, to, panel, flow } of m.links) {
+      const A = box(from, panel, m.workspace), B = box(to, panel, m.workspace);
       if (!A || !B) continue;
-      // The arrow always lands on the target, whichever side it sits on.
-      let x1, x2;
-      if (B.x >= A.x + A.w) { x1 = A.x + A.w; x2 = B.x; }
-      else if (A.x >= B.x + B.w) { x1 = A.x; x2 = B.x + B.w; }
-      else continue; // same column: containment already reads visually
-      const y1 = A.y + A.h / 2, y2 = B.y + B.h / 2, mx = (x1 + x2) / 2;
       const p = document.createElementNS(svgNS, 'path');
-      p.setAttribute('d', `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`);
+      p.setAttribute('d', ribbonRoute(A, B, obstacles));
       p.setAttribute('fill', 'none');
-      p.setAttribute('stroke', RIBBON_HOT);
-      p.setAttribute('stroke-width', '2.2');
+      p.setAttribute('stroke', flow ? RIBBON_HOT : RIBBON_REL);
+      p.setAttribute('stroke-width', '2');
       p.setAttribute('stroke-linecap', 'round');
+      p.setAttribute('stroke-linejoin', 'round');
+      if (flow) p.setAttribute('marker-end', 'url(#map-arrow)');
+      else p.setAttribute('stroke-dasharray', '5 4');
       // Nothing is drawn until a card is hovered: the map reads as columns of
       // resources, and the connections are the answer to pointing at one.
-      p.setAttribute('stroke-opacity', '0');
-      p.dataset.from = from; p.dataset.to = to;
+      p.setAttribute('opacity', '0');
+      p.dataset.from = from; p.dataset.to = to; p.dataset.ws = m.workspace;
       svg.appendChild(p);
     }
   }
@@ -1156,10 +1217,11 @@ function tracePath(id, adj) {
 let hoverApi = null;
 // A pinned card keeps its path on screen while you scroll away from it, and
 // survives the redraw that a re-plan causes.
-let pinnedId = null;
+let pinnedId = null, pinnedWorkspace = null;
 
-function nodeById(id) {
+function nodeById(id, workspace) {
   for (const ws of (latest?.workspaces) || []) {
+    if (ws.name !== workspace) continue;
     for (const n of ws.nodes || []) if (n.id === id) return n;
   }
   return null;
@@ -1167,62 +1229,67 @@ function nodeById(id) {
 
 function renderPinnedNote() {
   const el = $('pinned');
-  if (!pinnedId) { el.hidden = true; el.textContent = ''; return; }
-  const n = nodeById(pinnedId);
+  const visible = !!pinnedId && tab === 'map';
+  el.hidden = !visible;
+  $('release-pin').hidden = !visible;
+  if (!visible) { el.textContent = ''; return; }
+  const n = nodeById(pinnedId, pinnedWorkspace);
   el.hidden = false;
-  el.textContent = `pinned: ${n ? displayName(n) : pinnedId} — Esc to release`;
+  el.textContent = `${pinnedWorkspace} / ${n ? displayName(n) : pinnedId}`;
 }
 
 function wireHover(maps) {
   const scroll = $('map');
   const cards = [...scroll.querySelectorAll('.card')];
   const paths = [...$('ribbons').querySelectorAll('path')];
-  const adj = adjacencyOf(maps.flatMap(m => m.links));
-  const connected = id => adj.outFlow.has(id) || adj.intoFlow.has(id) ||
-                          adj.outRel.has(id) || adj.intoRel.has(id);
+  const adjByWorkspace = new Map(maps.map(m => [m.workspace, adjacencyOf(m.links)]));
+  const workspaceFor = (id, workspace) => workspace ?? cards.find(c => c.dataset.id === id)?.dataset.ws;
   const resetPaths = () => {
     cards.forEach(c => c.classList.remove('dim', 'hi'));
-    paths.forEach(p => p.setAttribute('stroke-opacity', '0'));
+    paths.forEach(p => p.setAttribute('opacity', '0'));
   };
-  const applyPath = id => {
-    if (!connected(id)) return; // nothing connects here
+  const applyPath = (id, workspace) => {
+    resetPaths();
+    const adj = adjByWorkspace.get(workspace);
+    if (!adj) return;
     const { nodes, edges } = tracePath(id, adj);
     cards.forEach(c => {
-      const on = nodes.has(c.dataset.id);
+      const on = c.dataset.ws === workspace && nodes.has(c.dataset.id);
       c.classList.toggle('dim', !on);
       c.classList.toggle('hi', on);
     });
     paths.forEach(p => {
-      p.setAttribute('stroke-opacity',
-        edges.has(p.dataset.from + ' ' + p.dataset.to) ? '1' : '0');
+      p.setAttribute('opacity',
+        p.dataset.ws === workspace && edges.has(p.dataset.from + ' ' + p.dataset.to) ? '1' : '0');
     });
   };
 
   // While a card is pinned the pointer stops driving the highlight, so
   // scrolling away from it — or across other cards — leaves it in place.
-  const hover = id => { if (!pinnedId) applyPath(id); };
+  const hover = (id, workspace) => { if (!pinnedId) applyPath(id, workspaceFor(id, workspace)); };
   const clear = () => { if (!pinnedId) resetPaths(); };
 
-  const setPinned = id => {
+  const setPinned = (id, workspace) => {
     pinnedId = id;
+    pinnedWorkspace = id ? workspaceFor(id, workspace) : null;
     cards.forEach(c => {
-      const pinned = !!id && c.dataset.id === id;
+      const pinned = !!id && c.dataset.id === id && c.dataset.ws === pinnedWorkspace;
       c.classList.toggle('pinned', pinned);
       c.querySelector('.card-main').setAttribute('aria-pressed', String(pinned));
     });
-    if (id) applyPath(id); else resetPaths();
+    if (id) applyPath(id, pinnedWorkspace); else resetPaths();
     renderPinnedNote();
   };
 
   hoverApi = { hover, clear, pin: setPinned, pinned: () => pinnedId };
 
   for (const card of cards) {
-    const id = card.dataset.id;
-    card.addEventListener('mouseenter', () => hover(id));
+    const id = card.dataset.id, workspace = card.dataset.ws;
+    card.addEventListener('mouseenter', () => hover(id, workspace));
     card.addEventListener('mouseleave', clear);
     const main = card.querySelector('.card-main');
     const detail = card.querySelector('.card-detail');
-    main.addEventListener('focus', () => hover(id));
+    main.addEventListener('focus', () => hover(id, workspace));
     main.addEventListener('blur', clear);
     detail.addEventListener('click', ev => {
       ev.stopPropagation();
@@ -1236,7 +1303,7 @@ function wireHover(maps) {
     card.addEventListener('click', ev => {
       ev.stopPropagation(); // a nested card locks itself, not its subnet
       if (ev.detail > 1) return; // the second half of a double click
-      setPinned(pinnedId === id ? null : id);
+      setPinned(pinnedId === id && pinnedWorkspace === workspace ? null : id, workspace);
     });
     card.addEventListener('dblclick', ev => {
       ev.stopPropagation();
@@ -1246,7 +1313,7 @@ function wireHover(maps) {
   }
 
   // Re-applied after a redraw so a re-plan does not drop the pin.
-  if (pinnedId && cards.some(c => c.dataset.id === pinnedId)) setPinned(pinnedId);
+  if (pinnedId && cards.some(c => c.dataset.id === pinnedId && c.dataset.ws === pinnedWorkspace)) setPinned(pinnedId, pinnedWorkspace);
   else if (pinnedId) setPinned(null);
 }
 
@@ -1389,16 +1456,37 @@ $('dr-close').onclick = closeDetail;
 $('drawer').addEventListener('cancel', e => { e.preventDefault(); closeDetail(); });
 window.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  // Escape backs out of one thing at a time: the drawer first, then the pin.
+  // Unwind one layer at a time, preserving the view behind the detail dialog.
   if ($('drawer').classList.contains('open')) { e.preventDefault(); closeDetail(); }
+  else if (!$('legend').classList.contains('closed')) { setLegend(false); $('legend-btn').focus(); }
   else if (pinnedId && hoverApi) hoverApi.pin(null);
+  else if (expandedView) setExpandedView(false);
 });
-// The legend answers a question a reader has once, so it stays folded away
-// until asked for rather than sitting over the map.
+function setLegend(open) {
+  $('legend').classList.toggle('closed', !open);
+  $('legend-btn').setAttribute('aria-expanded', String(open));
+}
 $('legend-btn').addEventListener('click', () => {
-  const closed = $('legend').classList.toggle('closed');
-  $('legend-btn').setAttribute('aria-expanded', closed ? 'false' : 'true');
+  setLegend($('legend').classList.contains('closed'));
 });
+document.addEventListener('click', e => {
+  if (!$('legend').contains(e.target)) setLegend(false);
+});
+$('release-pin').onclick = () => { hoverApi?.pin(null); $('expand-view').focus(); };
+
+let expandedView = false;
+function setExpandedView(expanded) {
+  expandedView = expanded;
+  document.body.classList.toggle('expanded-view', expanded);
+  $('expand-view').setAttribute('aria-pressed', String(expanded));
+  const label = expanded ? 'Restore view' : 'Expand view';
+  $('expand-view').setAttribute('aria-label', label);
+  $('expand-view').setAttribute('title', label);
+  $('expand-view').textContent = expanded ? '\u2922' : '\u26f6';
+  if (latest && tab === 'map') renderMap(scopedState(latest));
+  else if (tab === 'graph') fitGraph();
+}
+$('expand-view').onclick = () => setExpandedView(!expandedView);
 
 // Clicking the empty map releases the pin; cards stop their own clicks here.
 $('map').addEventListener('click', () => {
@@ -1580,10 +1668,10 @@ function drawGraph(layout) {
 }
 
 // ---------- tabs + live state -------------------------------------------
-let tab = 'review', latest = null, paintGeneration = 0;
+let tab = 'map', latest = null, paintGeneration = 0;
 function setTab(t) {
   tab = t;
-  for (const name of ['review', 'graph', 'map']) {
+  for (const name of ['map', 'review', 'graph']) {
     const active = name === t;
     $('tab-' + name).classList.toggle('on', active);
     $('tab-' + name).setAttribute('aria-selected', String(active));
@@ -1594,17 +1682,20 @@ function setTab(t) {
   $('review').style.display = t === 'review' ? 'flex' : 'none';
   $('graph-controls').style.display = t === 'graph' ? 'flex' : 'none';
   $('legend').style.display = t === 'map' ? 'flex' : 'none';
+  $('view-name').textContent = { map: 'Resource Map', review: 'Plan', graph: 'Graph' }[t];
+  setLegend(false);
+  renderPinnedNote();
   if (latest) paint(latest);
 }
 $('tab-map').onclick = () => setTab('map');
 $('tab-graph').onclick = () => setTab('graph');
 $('tab-review').onclick = () => setTab('review');
-for (const name of ['review', 'graph', 'map']) {
+for (const name of ['map', 'review', 'graph']) {
   $('tab-' + name).addEventListener('keydown', e => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
     e.preventDefault();
-    const names = ['review', 'graph', 'map'];
-    const next = e.key === 'Home' ? 'review' : e.key === 'End' ? 'map'
+    const names = ['map', 'review', 'graph'];
+    const next = e.key === 'Home' ? 'map' : e.key === 'End' ? 'graph'
       : names[(names.indexOf(name) + (e.key === 'ArrowLeft' ? 2 : 1)) % 3];
     setTab(next);
     $('tab-' + next).focus();
@@ -1653,7 +1744,9 @@ $('clear').addEventListener('click', () => {
 });
 window.addEventListener('keydown', e => {
   if (e.key === '/' && !$('drawer').open && document.activeElement !== $('q')) {
-    e.preventDefault(); $('q').focus();
+    e.preventDefault();
+    if (expandedView) setExpandedView(false);
+    $('q').focus();
   }
 });
 
