@@ -674,6 +674,55 @@ check('a module\'s instances are nested in another module\'s subnets', function 
   }
 });
 
+// --- locking and details ------------------------------------------------
+check('a single click locks the path, a double click opens the details', function () {
+  filter.text = ''; filter.statuses = new Set();
+  renderMap(STATE);
+  if (hoverApi.pinned()) hoverApi.pin(null);
+
+  var cards = __allCards(), card = null;
+  for (var i = 0; i < cards.length && !card; i++) {
+    if (cards[i].dataset.id === 'aws_subnet.public[0]') card = cards[i];
+  }
+  if (!card) throw new Error('no subnet card to click');
+
+  __fire(card, 'click', 1);
+  if (hoverApi.pinned() !== 'aws_subnet.public[0]') {
+    throw new Error('a single click did not lock the path');
+  }
+  if (!card.classList.contains('pinned')) throw new Error('the card is not marked as locked');
+
+  // The second click of a double arrives as a click too. It must be ignored,
+  // or the lock the first click took would be released again.
+  var opened = null, real = openDetail;
+  openDetail = function (ws, id) { opened = id; };
+  __fire(card, 'click', 2);
+  __fire(card, 'dblclick');
+  openDetail = real;
+
+  if (opened !== 'aws_subnet.public[0]') {
+    throw new Error('a double click did not open the details');
+  }
+  if (hoverApi.pinned() !== 'aws_subnet.public[0]') {
+    throw new Error('the double click released the lock');
+  }
+
+  // Clicking it once more lets go.
+  __fire(card, 'click', 1);
+  if (hoverApi.pinned()) throw new Error('clicking the locked card again did not release it');
+});
+
+check('the legend stays folded away until asked for', function () {
+  var legend = $('legend'), btn = $('legend-btn');
+  legend.classList.add('closed'); // the state the markup ships in
+  __fire(btn, 'click');
+  if (legend.classList.contains('closed')) throw new Error('the button did not open the legend');
+  if (btn.getAttribute('aria-expanded') !== 'true') throw new Error('aria-expanded not set');
+  __fire(btn, 'click');
+  if (!legend.classList.contains('closed')) throw new Error('the button did not fold it away');
+  if (btn.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded not cleared');
+});
+
 if (__failures) {
   print('\n' + __failures + ' FAILURE(S)');
 } else {

@@ -4,7 +4,6 @@
 diagram of what it will create — and what already exists.
 
 [![CI](https://github.com/AsysGupta/terradune/actions/workflows/ci.yml/badge.svg)](https://github.com/AsysGupta/terradune/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/AsysGupta/terradune)](https://goreportcard.com/report/github.com/AsysGupta/terradune)
 [![Go Reference](https://pkg.go.dev/badge/github.com/AsysGupta/terradune.svg)](https://pkg.go.dev/github.com/AsysGupta/terradune)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
@@ -37,10 +36,13 @@ question worth asking of a load balancer.
 - **Hover to trace a path.** Pointing at a subnet shows the VPC that holds it,
   the route table it is associated with, and the gateway that route table
   reaches. Pointing at an instance shows its interfaces, volumes, security
-  groups and subnet. Double-click to pin the path so you can scroll.
-- **Click for the detail.** The full attribute set as the plan sees it, with
-  unknown values shown the way Terraform prints them and a before/after diff
-  where something changes, plus what attaches to the resource and what it
+  groups and subnet.
+- **Click to lock it.** A single click holds the path on screen so it stays put
+  while you scroll across it. Click the card again, click the empty map, or
+  press Escape to let go.
+- **Double-click for the detail.** The full attribute set as the plan sees it,
+  with unknown values shown the way Terraform prints them and a before/after
+  diff where something changes, plus what attaches to the resource and what it
   depends on.
 - **Review mode.** A tally per workspace, a chip per status to filter by, and a
   search across addresses, types, names, CIDRs and zones.

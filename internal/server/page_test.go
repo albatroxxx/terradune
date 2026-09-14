@@ -131,3 +131,22 @@ func TestPageRendersHeadlessly(t *testing.T) {
 		t.Fatal("headless page checks did not pass")
 	}
 }
+
+// The legend sits over the map, so it ships folded away behind its own
+// button rather than covering the corner of the diagram from the start.
+func TestLegendShipsFolded(t *testing.T) {
+	page, err := static.ReadFile("index.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := string(page)
+	if !strings.Contains(html, `<div id="legend" class="closed">`) {
+		t.Error("the legend does not ship closed")
+	}
+	if !strings.Contains(html, `id="legend-btn"`) {
+		t.Error("the legend has no button to open it")
+	}
+	if !strings.Contains(html, `aria-expanded="false"`) {
+		t.Error("the legend button does not report its state")
+	}
+}

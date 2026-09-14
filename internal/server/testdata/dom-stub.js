@@ -4,17 +4,51 @@
 // markup the page produced.
 var __sinks = {};
 
+// Classes are tracked for real: the page decides what is locked, dimmed or
+// folded away by toggling them, so a stub that forgets them cannot test any of
+// that.
+function __classList() {
+  var on = {};
+  return {
+    _on: on,
+    add(c) { on[c] = true; },
+    remove(c) { delete on[c]; },
+    contains(c) { return !!on[c]; },
+    toggle(c, force) {
+      if (force === true) { on[c] = true; return true; }
+      if (force === false) { delete on[c]; return false; }
+      if (on[c]) { delete on[c]; return false; }
+      on[c] = true; return true;
+    },
+  };
+}
+
+// Handlers are kept so __fire can deliver a click the way a browser would,
+// including the detail count that separates a single click from a double.
+function __fire(el, type, detail) {
+  var ev = {
+    type: type, detail: detail === undefined ? 1 : detail,
+    stopPropagation() {}, preventDefault() {},
+  };
+  var handlers = (el._handlers && el._handlers[type]) || [];
+  for (var i = 0; i < handlers.length; i++) handlers[i](ev);
+  return ev;
+}
+
 function __fakeEl(id, tag) {
   return {
     id: id, tag: tag || id, _html: '', _text: '', dataset: {}, style: {},
-    attrs: {}, children: [],
-    classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+    attrs: {}, children: [], _handlers: {},
+    classList: __classList(),
     setAttribute(k, v) { this.attrs[k] = String(v); },
     getAttribute(k) { return this.attrs[k] === undefined ? null : this.attrs[k]; },
     removeAttribute(k) { delete this.attrs[k]; },
     appendChild(c) { this.children.push(c); return c; },
     insertAdjacentHTML() {},
-    addEventListener() {}, removeEventListener() {},
+    addEventListener(type, fn) {
+      (this._handlers[type] || (this._handlers[type] = [])).push(fn);
+    },
+    removeEventListener() {},
     querySelector(sel) { return __cardFor(sel); },
     querySelectorAll(sel) {
       if (sel === '.card') return __allCards();

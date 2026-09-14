@@ -216,12 +216,20 @@
   .rel .inner { padding: 6px 9px; }
   .none { color: var(--faint); font-size: 12px; font-style: italic; }
 
-  #legend { position: fixed; right: 16px; bottom: 16px; background: var(--surface);
-            border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px;
-            font-size: 11px; z-index: 5; box-shadow: 0 2px 10px rgba(20,30,50,.07); }
-  #legend div { display: flex; align-items: center; gap: 8px; padding: 1.5px 0; }
+  #legend { position: fixed; right: 16px; bottom: 16px; z-index: 5;
+            display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  #legend .items { background: var(--surface); border: 1px solid var(--line);
+                   border-radius: 8px; padding: 9px 12px; font-size: 11px;
+                   box-shadow: 0 2px 10px rgba(20,30,50,.07); }
+  #legend.closed .items { display: none; }
+  #legend .items > div { display: flex; align-items: center; gap: 8px; padding: 1.5px 0; }
   #legend i { width: 22px; height: 12px; border-radius: 3px; flex: none;
               border: 1px solid; border-left-width: 4px; }
+  #legend-btn { font: inherit; font-size: 11px; cursor: pointer; color: var(--muted);
+                background: var(--surface); border: 1px solid var(--line);
+                border-radius: 999px; padding: 4px 11px;
+                box-shadow: 0 2px 10px rgba(20,30,50,.07); }
+  #legend-btn:hover { color: var(--fg); border-color: var(--muted); }
 </style>
 </head>
 <body>
@@ -256,12 +264,15 @@
   </div>
   <div class="dr-body" id="dr-body"></div>
 </aside>
-<div id="legend">
-  <div><i style="background:var(--create-bg);border-color:var(--create-bd)"></i> will be created</div>
-  <div><i style="background:var(--existing-bg);border-color:var(--existing-bd)"></i> already exists</div>
-  <div><i style="background:var(--update-bg);border-color:var(--update-bd)"></i> will change</div>
-  <div><i style="background:var(--replace-bg);border-color:var(--replace-bd)"></i> will be replaced</div>
-  <div><i style="background:var(--destroy-bg);border-color:var(--destroy-bd)"></i> will be destroyed</div>
+<div id="legend" class="closed">
+  <div class="items">
+    <div><i style="background:var(--create-bg);border-color:var(--create-bd)"></i> will be created</div>
+    <div><i style="background:var(--existing-bg);border-color:var(--existing-bd)"></i> already exists</div>
+    <div><i style="background:var(--update-bg);border-color:var(--update-bd)"></i> will change</div>
+    <div><i style="background:var(--replace-bg);border-color:var(--replace-bd)"></i> will be replaced</div>
+    <div><i style="background:var(--destroy-bg);border-color:var(--destroy-bd)"></i> will be destroyed</div>
+  </div>
+  <button id="legend-btn" type="button" aria-expanded="false">Legend</button>
 </div>
 
 <script src="/assets/elk.bundled.js"></script>
@@ -1084,21 +1095,21 @@ function wireHover(maps) {
 
   for (const card of cards) {
     const id = card.dataset.id;
-    let clickTimer = null;
     card.addEventListener('mouseenter', () => hover(id));
     card.addEventListener('mouseleave', clear);
-    // A single click opens the details; two pins the path. The wait is what
-    // separates them, so opening a drawer does not also pin.
+    // A single click locks the path, so it holds still while you read across
+    // it; a double click opens the resource's details. The second click of a
+    // double arrives here too, and is left alone — the card is already locked,
+    // and the drawer opens on top of it.
     card.addEventListener('click', ev => {
-      ev.stopPropagation(); // a nested card opens itself, not its subnet
-      clearTimeout(clickTimer);
-      clickTimer = setTimeout(() => openDetail(card.dataset.ws, id), 220);
+      ev.stopPropagation(); // a nested card locks itself, not its subnet
+      if (ev.detail > 1) return; // the second half of a double click
+      setPinned(pinnedId === id ? null : id);
     });
     card.addEventListener('dblclick', ev => {
       ev.stopPropagation();
       ev.preventDefault();
-      clearTimeout(clickTimer);
-      setPinned(pinnedId === id ? null : id);
+      openDetail(card.dataset.ws, id);
     });
   }
 
@@ -1231,6 +1242,13 @@ window.addEventListener('keydown', e => {
   if ($('drawer').classList.contains('open')) closeDetail();
   else if (pinnedId && hoverApi) hoverApi.pin(null);
 });
+// The legend answers a question a reader has once, so it stays folded away
+// until asked for rather than sitting over the map.
+$('legend-btn').addEventListener('click', () => {
+  const closed = $('legend').classList.toggle('closed');
+  $('legend-btn').setAttribute('aria-expanded', closed ? 'false' : 'true');
+});
+
 // Clicking the empty map releases the pin; cards stop their own clicks here.
 $('map').addEventListener('click', () => {
   if (pinnedId && hoverApi) hoverApi.pin(null);
