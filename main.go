@@ -1,5 +1,7 @@
-// terradune: Terraform, drawn. One command turns any Terraform codebase into
-// a clear diagram of what it will create — and what already exists.
+// Terradune reviews Terraform plans as resources and relationships. One
+// command plans every initialized workspace beneath a path and serves the
+// result on localhost as three views: Resource Map, Plan, and Graph. It runs
+// plan, show, and graph — never apply.
 package main
 
 import (
@@ -151,7 +153,7 @@ func run(ctx context.Context, dir, host string, port int, printOnly bool, opts i
 			srv.SetError(ws.Name, ws.Dir, err.Error())
 			return
 		}
-		srv.SetGraph(ws.Name, ws.Dir, inv.TerraformVersion,
+		srv.SetGraph(ws.Name, ws.Dir, inv.CLI, inv.TerraformVersion,
 			graph.BuildWithDOT(inv.Plan, inv.DOT), graph.BuildDetails(inv.Plan))
 		log.Printf("%s: %d resources", ws.Name, len(inv.Resources))
 	}

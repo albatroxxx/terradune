@@ -2,7 +2,7 @@
 
 ## Stable Contract
 
-The supported installation channels are versioned GHCR Docker images and `go install` from a stable tag. The Go CLI flags and documented local workflow are the v1 compatibility surface. The internal JSON/SSE API is not a versioned public integration API. Generic resource rendering is not complete Terraform lifecycle support.
+The supported installation channels are versioned GHCR Docker images, signed binary archives attached to the release, and `go install` from a stable tag. The Go CLI flags and documented local workflow are the v1 compatibility surface. The internal JSON/SSE API is not a versioned public integration API. Generic resource rendering is not complete Terraform lifecycle support.
 
 Use semantic versions: compatible fixes in patches, additive capabilities in minors, breaking documented behavior in majors. Never move an existing stable Git tag or deliberately overwrite an already published patch image. Moving `1`, `1.0`, and `latest` tags are convenience aliases; consumers needing immutable content must use the digest in release notes.
 
@@ -20,6 +20,8 @@ Run the **Release** workflow from main, with input `tag=vX.Y.Z`. The first relea
 
 On first publication, GitHub Packages defaults to private. In the package settings, change **only the Terradune container package** to public. The anonymous pull step waits up to five minutes; if it times out, change visibility and rerun the failed job. Public package visibility cannot be reverted to private through GitHub's normal settings. No source workspace or credentials are included in the allowlisted Docker build context.
 
+After the release exists, the `binaries` job runs GoReleaser to append archives for Linux, macOS, and Windows on both architectures, plus `checksums.txt` and its cosign signature. It appends rather than replaces, so the notes and verified digest written by `publish` survive. A packaging mistake should surface earlier than this: CI runs `goreleaser check` and a snapshot build on every pull request.
+
 The release includes a multi-platform digest, SBOM, and provenance attestations. A successful Release workflow triggers Pages; the site also supports manual deployment. Pages checks that the advertised stable release exists before deployment. A tag-triggered path remains for future releases, but manual dispatch avoids a prematurely installable tag.
 
 ## Verify After Publication
@@ -31,6 +33,10 @@ docker pull ghcr.io/albatroxxx/terradune:1.0.0
 go install github.com/albatroxxx/terradune@v1.0.0
 terradune -version
 ```
+
+Check the binaries too: download an archive and `checksums.txt`, confirm the
+checksum, and verify the signature with `cosign verify-blob` against the
+`https://token.actions.githubusercontent.com` issuer.
 
 Use a clean Docker config for the anonymous pull. Confirm both platforms and attestation manifests, the released digest, and the actual version string. If the Go proxy has not indexed a new tag, retry after propagation or use `GOPROXY=direct` for verification.
 

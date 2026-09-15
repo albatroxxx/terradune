@@ -60,7 +60,7 @@ func TestSensitiveValuesDoNotReachPublicEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := New("/test")
-	s.SetGraph("test", "/test", "1.16.2", graph.Build(&plan), graph.BuildDetails(&plan))
+	s.SetGraph("test", "/test", "terraform", "1.16.2", graph.Build(&plan), graph.BuildDetails(&plan))
 	for _, path := range []string{"/state", "/resource?workspace=test&address=aws_vpc.main"} {
 		r := httptest.NewRequest("GET", path, nil)
 		r.Host = "localhost"

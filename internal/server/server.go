@@ -23,8 +23,11 @@ var static embed.FS
 // A failed re-plan keeps the previous nodes and edges and sets Error, so the
 // page never goes blank.
 type Workspace struct {
-	Name             string       `json:"name"`
-	Dir              string       `json:"dir"`
+	Name string `json:"name"`
+	Dir  string `json:"dir"`
+	// CLI is the binary that produced this plan, "terraform" or "tofu", so the
+	// interface can name the tool the reader actually ran.
+	CLI              string       `json:"cli,omitempty"`
 	TerraformVersion string       `json:"terraformVersion,omitempty"`
 	Error            string       `json:"error,omitempty"`
 	Rebuilding       bool         `json:"rebuilding"`
@@ -69,10 +72,10 @@ func (s *Server) get(name, dir string) *Workspace {
 }
 
 // SetGraph records a successful plan for one workspace.
-func (s *Server) SetGraph(name, dir, tfVersion string, g *graph.Graph, details map[string]*graph.Detail) {
+func (s *Server) SetGraph(name, dir, cli, tfVersion string, g *graph.Graph, details map[string]*graph.Detail) {
 	s.mu.Lock()
 	ws := s.get(name, dir)
-	ws.TerraformVersion = tfVersion
+	ws.CLI, ws.TerraformVersion = cli, tfVersion
 	ws.Nodes, ws.Edges = g.Nodes, g.Edges
 	ws.Error, ws.Rebuilding = "", false
 	s.details[name] = details

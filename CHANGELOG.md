@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Signed binary archives for Linux, macOS, and Windows on AMD64 and ARM64,
+  appended to each release by GoReleaser with `checksums.txt` and a keyless
+  cosign signature. CI validates the release config and cross-builds on every
+  pull request.
+- OpenTofu is accepted when Terraform is not installed. Terraform still wins
+  when both are present, and the interface names whichever produced the plan.
+
 ## 1.0.0
 
 First stable release of the documented local plan-review workflow.

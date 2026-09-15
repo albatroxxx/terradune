@@ -983,6 +983,25 @@ async function checkDetailRequests() {
   } finally { fetch = realFetch; }
 }
 
+check('a plan is labelled with the tool that produced it', function () {
+  // Terradune drives OpenTofu when Terraform is absent, so the header must not
+  // call an OpenTofu plan Terraform.
+  if (cliName({cli: 'tofu'}) !== 'OpenTofu') throw new Error('tofu is not named OpenTofu');
+  if (cliName({cli: 'terraform'}) !== 'Terraform') throw new Error('terraform is misnamed');
+  // A workspace planned before the tool was recorded still has to read sensibly.
+  if (cliName({}) !== 'Terraform') throw new Error('an unrecorded tool lost its name');
+
+  filter.text = ''; filter.statuses = new Set();
+  var asTofu = Object.assign({}, STATE, {workspaces: STATE.workspaces.map(function (ws) {
+    return Object.assign({}, ws, {cli: 'tofu', terraformVersion: '1.8.0'});
+  })});
+  renderMap(asTofu);
+  var h = __sinks['mapbody'] || '';
+  if (h.indexOf('OpenTofu 1.8.0') === -1) throw new Error('the header does not name OpenTofu');
+  if (h.indexOf('terraform 1.8.0') !== -1) throw new Error('the header still says terraform');
+  renderMap(STATE);
+});
+
 checkDetailRequests().then(function () {
   if (__failures) print('\n' + __failures + ' FAILURE(S)');
   else print('\nALL CHECKS PASSED');
