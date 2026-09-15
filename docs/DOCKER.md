@@ -84,7 +84,8 @@ across versions, and the container is disposable because every documented run
 uses `--rm`.
 
 ```sh
-docker pull ghcr.io/albatroxxx/terradune:1.0.1
+# latest follows the newest release; name a version to pin one.
+docker pull ghcr.io/albatroxxx/terradune:latest
 ```
 
 With Compose, change the `image:` line, then `docker compose pull` followed by
@@ -95,7 +96,7 @@ container wrote:
 
 ```sh
 docker images ghcr.io/albatroxxx/terradune --format '{{.Repository}}:{{.Tag}}'
-docker rmi ghcr.io/albatroxxx/terradune:1.0.1
+docker rmi ghcr.io/albatroxxx/terradune:1.0.0
 docker image prune   # only the layers nothing else references
 ```
 
