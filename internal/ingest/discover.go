@@ -15,6 +15,23 @@ type Workspace struct {
 	Dir  string // absolute path
 }
 
+// DataDir follows Terraform's per-working-directory initialization setting.
+func DataDir(dir string) string {
+	data := os.Getenv("TF_DATA_DIR")
+	if data == "" {
+		data = ".terraform"
+	}
+	if filepath.IsAbs(data) {
+		return data
+	}
+	return filepath.Join(dir, data)
+}
+
+func initialized(dir string) bool {
+	info, err := os.Stat(DataDir(dir))
+	return err == nil && info.IsDir()
+}
+
 // Discover finds every initialized Terraform workspace at or below root.
 // Initialization is the signal that separates a workspace root from a
 // directory that merely holds module source: only the former has .terraform.
@@ -27,6 +44,12 @@ func Discover(root string) ([]Workspace, error) {
 	if err != nil || !info.IsDir() {
 		return nil, fmt.Errorf("%s is not a directory", abs)
 	}
+	if filepath.IsAbs(os.Getenv("TF_DATA_DIR")) {
+		if !initialized(abs) {
+			return nil, fmt.Errorf("TF_DATA_DIR is not initialized; run terraform init with the same environment")
+		}
+		return []Workspace{{Name: filepath.Base(abs), Dir: abs}}, nil
+	}
 
 	var found []Workspace
 	err = filepath.WalkDir(abs, func(path string, d fs.DirEntry, err error) error {
@@ -34,10 +57,13 @@ func Discover(root string) ([]Workspace, error) {
 			return nil //nolint:nilerr // unreadable dirs are skipped, not fatal
 		}
 		switch d.Name() {
-		case ".git", ".terraform":
+		case ".git", ".terraform", ".terradune":
 			return filepath.SkipDir
 		}
-		if _, err := os.Stat(filepath.Join(path, ".terraform")); err != nil {
+		if data := os.Getenv("TF_DATA_DIR"); data != "" && d.Name() == filepath.Base(filepath.Clean(data)) {
+			return filepath.SkipDir
+		}
+		if !initialized(path) {
 			return nil
 		}
 		name, rerr := filepath.Rel(abs, path)

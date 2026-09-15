@@ -63,7 +63,7 @@ func Load(ctx context.Context, dir string, opts Options) (*Inventory, error) {
 	if info, err := os.Stat(abs); err != nil || !info.IsDir() {
 		return nil, fmt.Errorf("%s is not a directory", abs)
 	}
-	if _, err := os.Stat(filepath.Join(abs, ".terraform")); err != nil {
+	if !initialized(abs) {
 		return nil, fmt.Errorf("workspace %s is not initialized — run `terraform init` there first", abs)
 	}
 
@@ -84,7 +84,7 @@ func Load(ctx context.Context, dir string, opts Options) (*Inventory, error) {
 	defer os.RemoveAll(tmp)
 	planFile := filepath.Join(tmp, "tfplan")
 
-	planOpts := []tfexec.PlanOption{tfexec.Out(planFile), tfexec.Refresh(opts.Refresh)}
+	planOpts := []tfexec.PlanOption{tfexec.Out(planFile), tfexec.Refresh(opts.Refresh), tfexec.LockTimeout("30s")}
 	for _, vf := range opts.VarFiles {
 		abs, err := filepath.Abs(vf)
 		if err != nil {

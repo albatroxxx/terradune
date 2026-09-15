@@ -11,9 +11,11 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"runtime/debug"
+	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -24,6 +26,26 @@ import (
 )
 
 var version = "dev"
+
+func buildVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return version
+}
+
+func listenAddress(host string, port int) (string, error) {
+	if net.ParseIP(host) == nil && host != "localhost" {
+		return "", fmt.Errorf("host must be localhost or an IP address")
+	}
+	if port < 1 || port > 65535 {
+		return "", fmt.Errorf("port must be between 1 and 65535")
+	}
+	return net.JoinHostPort(host, strconv.Itoa(port)), nil
+}
 
 // repeatable collects a flag given more than once, like terraform's own
 // -var-file and -var.
@@ -40,6 +62,11 @@ func main() {
 	showVersion := flag.Bool("version", false, "print version and exit")
 	printOnly := flag.Bool("print", false, "print the inventory and graph once, without serving")
 	port := flag.Int("port", 8383, "port for the local server")
+	hostDefault := os.Getenv("TERRADUNE_HOST")
+	if hostDefault == "" {
+		hostDefault = "127.0.0.1"
+	}
+	host := flag.String("host", hostDefault, "listen IP; use 0.0.0.0 inside Docker with a loopback-only published port")
 	refresh := flag.Bool("refresh", false, "refresh state before planning (slower, needs live credentials)")
 	var varFiles, vars repeatable
 	flag.Var(&varFiles, "var-file", "variable file to pass to terraform (repeatable)")
@@ -54,7 +81,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Println("terradune", version)
+		fmt.Println("terradune", buildVersion())
 		return
 	}
 
@@ -64,13 +91,17 @@ func main() {
 	}
 
 	opts := ingest.Options{VarFiles: varFiles, Vars: vars, Refresh: *refresh}
-	if err := run(context.Background(), dir, *port, *printOnly, opts); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := run(ctx, dir, *host, *port, *printOnly, opts); err != nil {
 		fmt.Fprintln(os.Stderr, "terradune:", err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, dir string, port int, printOnly bool, opts ingest.Options) error {
+func run(ctx context.Context, dir, host string, port int, printOnly bool, opts ingest.Options) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	root, err := filepath.Abs(dir)
 	if err != nil {
 		return err
@@ -81,19 +112,36 @@ func run(ctx context.Context, dir string, port int, printOnly bool, opts ingest.
 	}
 
 	if printOnly {
+		var failed bool
 		for _, ws := range workspaces {
 			fmt.Printf("\n=== %s ===\n", ws.Name)
 			inv, err := ingest.Load(ctx, ws.Dir, opts)
 			if err != nil {
 				fmt.Printf("error: %v\n", err)
+				failed = true
 				continue
 			}
 			inv.PrintSummary(os.Stdout)
 			graph.BuildWithDOT(inv.Plan, inv.DOT).Print(os.Stdout)
 		}
+		if failed {
+			return fmt.Errorf("one or more workspaces failed to plan")
+		}
 		return nil
 	}
 
+	addr, err := listenAddress(host, port)
+	if err != nil {
+		return err
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		if errors.Is(err, syscall.EADDRINUSE) {
+			return fmt.Errorf("port %d is already in use; choose another port with -port", port)
+		}
+		return err
+	}
+	defer ln.Close()
 	srv := server.New(root)
 	plan := func(ws ingest.Workspace) {
 		srv.SetRebuilding(ws.Name, ws.Dir)
@@ -109,30 +157,8 @@ func run(ctx context.Context, dir string, port int, printOnly bool, opts ingest.
 	}
 
 	log.Printf("planning %d workspace(s) under %s", len(workspaces), root)
-	go planAll(workspaces, plan)
-
-	// Rebuilds are serialized per workspace; a change arriving mid-plan
-	// queues exactly one follow-up rather than piling up.
-	rebuild := make(chan ingest.Workspace, len(workspaces))
-	go func() {
-		queued := map[string]bool{}
-		var mu sync.Mutex
-		for ws := range rebuild {
-			mu.Lock()
-			if queued[ws.Name] {
-				mu.Unlock()
-				continue
-			}
-			queued[ws.Name] = true
-			mu.Unlock()
-
-			plan(ws)
-
-			mu.Lock()
-			delete(queued, ws.Name)
-			mu.Unlock()
-		}
-	}()
+	plans := newPlanScheduler(ctx, workspaces, plan)
+	defer func() { cancel(); plans.Wait() }()
 
 	go func() {
 		err := watch.Watch(ctx, root, func(paths []string) {
@@ -149,7 +175,7 @@ func run(ctx context.Context, dir string, port int, printOnly bool, opts ingest.
 			}
 			for _, ws := range hit {
 				log.Printf("%s: change detected", ws.Name)
-				rebuild <- ws
+				plans.Trigger(ws)
 			}
 		})
 		if err != nil && ctx.Err() == nil {
@@ -157,18 +183,7 @@ func run(ctx context.Context, dir string, port int, printOnly bool, opts ingest.
 		}
 	}()
 
-	addr := fmt.Sprintf("localhost:%d", port)
-	// Bind before announcing: otherwise a second terradune prints a serving
-	// banner it cannot honour, and the browser keeps talking to the first one.
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) {
-			return fmt.Errorf("port %d is already in use — another terradune may be running; "+
-				"stop it or choose another port with -port", port)
-		}
-		return err
-	}
-	log.Printf("terradune serving http://%s", addr)
+	log.Printf("terradune serving %s", strconv.Quote("http://"+ln.Addr().String()))
 	// Timeouts bound how long a stalled client can hold a connection. The
 	// write timeout stays open because /events is a long-lived stream.
 	server := &http.Server{
@@ -177,20 +192,16 @@ func run(ctx context.Context, dir string, port int, printOnly bool, opts ingest.
 		ReadTimeout:       30 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
-	return server.Serve(ln)
-}
-
-func planAll(workspaces []ingest.Workspace, plan func(ingest.Workspace)) {
-	sem := make(chan struct{}, planConcurrency)
-	var wg sync.WaitGroup
-	for _, ws := range workspaces {
-		wg.Add(1)
-		go func(ws ingest.Workspace) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			plan(ws)
-		}(ws)
+	go func() {
+		<-ctx.Done()
+		// Closing connections also releases long-lived SSE clients immediately.
+		if err := server.Close(); err != nil {
+			log.Printf("closing HTTP server: %v", err)
+		}
+	}()
+	err = server.Serve(ln)
+	if errors.Is(err, http.ErrServerClosed) && ctx.Err() != nil {
+		return nil
 	}
-	wg.Wait()
+	return err
 }

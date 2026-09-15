@@ -6,8 +6,10 @@ import (
 	"embed"
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -47,12 +49,14 @@ type Server struct {
 }
 
 func New(root string) *Server {
-	return &Server{
+	s := &Server{
 		root:       root,
 		workspaces: map[string]*Workspace{},
 		details:    map[string]map[string]*graph.Detail{},
 		clients:    map[chan []byte]bool{},
 	}
+	s.broadcastLocked()
+	return s
 }
 
 func (s *Server) get(name, dir string) *Workspace {
@@ -109,7 +113,17 @@ func (s *Server) broadcastLocked() {
 	for ch := range s.clients {
 		select {
 		case ch <- payload:
-		default: // slow client; it catches up on the next event
+		default:
+			// Snapshots replace each other. Never leave the final result behind
+			// a full queue of intermediate rebuilding states.
+			select {
+			case <-ch:
+			default:
+			}
+			select {
+			case ch <- payload:
+			default:
+			}
 		}
 	}
 }
@@ -124,6 +138,10 @@ func writeOrLog(w http.ResponseWriter, b []byte) {
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		writeOrLog(w, []byte("ok\n"))
+	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
@@ -150,7 +168,28 @@ func (s *Server) Handler() http.Handler {
 	})
 	mux.HandleFunc("/resource", s.handleResource)
 	mux.HandleFunc("/events", s.handleEvents)
-	return mux
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
+		host := r.Host
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
+		}
+		host = strings.Trim(host, "[]")
+		if host != "localhost" && net.ParseIP(host) == nil {
+			http.Error(w, "use localhost or an IP address", http.StatusForbidden)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.Header().Set("Allow", "GET, HEAD")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})
 }
 
 // related is one end of a dependency, shown beside a resource's own detail.
@@ -226,7 +265,7 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 
-	ch := make(chan []byte, 4)
+	ch := make(chan []byte, 1)
 	s.mu.Lock()
 	s.clients[ch] = true
 	initial := s.current
