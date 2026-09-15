@@ -390,6 +390,9 @@ func collectValues(mod *tfjson.StateModule, out map[string]map[string]string) {
 }
 
 func displayMeta(rc *tfjson.ResourceChange, fallback map[string]string) map[string]string {
+	if rc.Change.BeforeSensitive == true || rc.Change.AfterSensitive == true {
+		return nil
+	}
 	change, err := sanitize.SanitizeChange(rc.Change, nil)
 	if err != nil {
 		return nil
@@ -398,9 +401,6 @@ func displayMeta(rc *tfjson.ResourceChange, fallback map[string]string) map[stri
 	safe.Change = change
 	attrs := changeAttrs(&safe)
 	if attrs == nil {
-		if rc.Change.BeforeSensitive == true || rc.Change.AfterSensitive == true {
-			return nil
-		}
 		return routeMeta(&safe, fallback)
 	}
 	return routeMeta(&safe, metadataOf(attrs))
