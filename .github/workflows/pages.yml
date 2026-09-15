@@ -23,7 +23,7 @@ jobs:
     outputs:
       ready: ${{ steps.release.outputs.ready }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
       - name: Wait for a real stable release before advertising installation
