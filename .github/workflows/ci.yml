@@ -91,6 +91,27 @@ jobs:
           exit-code: '1'
           scanners: vuln
 
+  binaries:
+    name: Binary build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          version: '~> v2'
+          install-only: true
+      # A broken release config or a cross-build that does not compile should
+      # fail here, not halfway through a release where the image is already
+      # published and the tag already exists.
+      - run: goreleaser check
+      - run: goreleaser build --snapshot --clean
+
   sast:
     name: SAST
     runs-on: ubuntu-latest

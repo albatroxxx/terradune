@@ -19,3 +19,6 @@ examples/modular/pets/note.txt
 
 # Stale lock files left when a plan is interrupted
 *.tfstate.lock.info
+
+# GoReleaser build output
+/dist/

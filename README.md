@@ -32,9 +32,38 @@ docker run --rm --user "$(id -u):$(id -g)" \
 
 Initialize inside the container even if the host is already initialized. Linux providers live in `.terradune/`, separate from native `.terraform/`; add `.terradune/` to your workspace's `.gitignore`. The mount must be writable. Forward credentials to both commands when your backend or provider requires them. See the [Docker guide](docs/DOCKER.md) for AWS profiles, Compose, Windows, and troubleshooting.
 
+### Binary
+
+Signed archives are published for Linux, macOS, and Windows on AMD64 and ARM64.
+Download one from the [latest release](https://github.com/albatroxxx/terradune/releases/latest),
+verify it, and put `terradune` on your `PATH`:
+
+```sh
+VERSION=1.0.1; OS=darwin; ARCH=arm64
+BASE=https://github.com/albatroxxx/terradune/releases/download/v$VERSION
+curl -fsSLO "$BASE/terradune_${VERSION}_${OS}_${ARCH}.tar.gz"
+curl -fsSLO "$BASE/checksums.txt"
+shasum -a 256 --ignore-missing -c checksums.txt
+tar xzf "terradune_${VERSION}_${OS}_${ARCH}.tar.gz" terradune
+```
+
+`checksums.txt` is signed with cosign in GitHub's OIDC identity, so no key has to
+be distributed:
+
+```sh
+cosign verify-blob checksums.txt \
+  --certificate checksums.txt.pem --signature checksums.txt.sig \
+  --certificate-identity-regexp 'https://github.com/albatroxxx/terradune/.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+Binary archives are published from the first release after v1.0.0; v1.0.0 itself
+shipped the container image only.
+
 ### Go
 
-Requires Go 1.27.1+, Terraform on your `PATH`, and an initialized workspace.
+Requires Go 1.27.1+, a Terraform or OpenTofu CLI on your `PATH`, and an
+initialized workspace.
 
 ```sh
 go install github.com/albatroxxx/terradune@v1.0.0
@@ -43,6 +72,10 @@ terradune ./infra
 ```
 
 Open the printed local URL, normally `http://localhost:8383`. Run `terraform init` in the workspace first. Provider credentials and inputs work the same way they do with Terraform, including AWS profiles, SSO, and environment variables.
+
+Terradune drives `terraform` when it is installed and falls back to `tofu`, so an
+OpenTofu-only machine needs no extra configuration. The workspace header names
+whichever one produced the plan. The container image ships Terraform.
 
 ```sh
 # Scan initialized workspaces beneath a directory.
@@ -89,6 +122,7 @@ Zoom and fit controls are available above the graph. Graph nodes can be focused 
 | Actions | Create, update, replace, destroy, unchanged |
 | Relationships | Configuration references, Terraform DOT dependencies, and matching resolved IDs/ARNs |
 | Workspaces | Scan initialized directories, filter scope, and receive live plan updates |
+| CLI | Terraform, or OpenTofu where Terraform is absent; the plan names which one ran |
 | Network layout | Specialized AWS VPC and load-balancer views |
 
 **Generic type coverage is not complete Terraform feature parity.** Data sources are currently followed as reference paths rather than shown as inventory entries. Imports, moves, output changes, deferred plans, and alias-aware account/region metadata need explicit lifecycle support. The [makeover plan](docs/MAKEOVER.md) defines that compatibility work and its acceptance criteria.
