@@ -90,6 +90,68 @@ terradune -port 8484 ./infra
 
 Terradune never runs `terraform apply`. It runs `plan`, `show`, and `graph`; planning can contact providers and data sources. Refresh is off by default. Native execution binds to loopback. Docker listens inside the container and the commands above publish only to host loopback. There is no authentication or TLS; do not publish this port to the internet.
 
+## Update Or Remove
+
+Terradune keeps no configuration, cache, or state of its own. It creates one
+temporary directory per plan and deletes it again, so updating is replacing a
+binary or an image, and removing is deleting one. Nothing migrates between
+versions.
+
+Compare what you are running against what is current:
+
+```sh
+terradune -version
+gh release view --repo albatroxxx/terradune --json tagName --jq .tagName
+```
+
+### Docker
+
+```sh
+# Update: pull the version you want, then start it as before.
+docker pull ghcr.io/albatroxxx/terradune:1.0.1
+
+# Remove: drop the images you no longer need.
+docker rmi ghcr.io/albatroxxx/terradune:1.0.1 ghcr.io/albatroxxx/terradune:1.0.0
+```
+
+`1` and `1.0` follow the newest matching release and `latest` follows the newest
+of all, so pin the digest from the release notes whenever you need to get exactly
+the same image back later. With Compose, edit the `image:` line, then
+`docker compose pull && docker compose up`; `docker compose down` removes the
+container.
+
+The container initializes providers into `.terradune/` in each workspace, and
+that outlives the image. Delete it per workspace when you are done:
+
+```sh
+rm -rf .terradune
+```
+
+Leave `.terraform/` alone — that one belongs to your own Terraform CLI, not to
+Terradune. See the [Docker guide](docs/DOCKER.md#provider-data).
+
+### Binary
+
+Update by unpacking a newer archive over the old binary, verifying it the same
+way as the first install. Remove it by deleting it:
+
+```sh
+rm "$(command -v terradune)"
+```
+
+### Go
+
+```sh
+# Update: installs over the previous build.
+go install github.com/albatroxxx/terradune@v1.0.1
+
+# Remove.
+rm "$(go env GOPATH)/bin/terradune"
+```
+
+`go clean -modcache` also clears the download cache, but it clears it for every
+module on the machine, which is rarely what you want for one tool.
+
 ## Three Views, One Plan
 
 ### Resource Map

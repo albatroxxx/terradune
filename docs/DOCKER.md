@@ -77,6 +77,40 @@ docker run --rm --user "$(id -u):$(id -g)" \
 | State lock timeout | Stop the competing Terraform process; do not force-unlock an active lock |
 | Health check fails with custom port | Keep container port 8383 or override the image health check consistently |
 
+## Update And Removal
+
+Pull the version you want and start it the same way; there is no state to carry
+across versions, and the container is disposable because every documented run
+uses `--rm`.
+
+```sh
+docker pull ghcr.io/albatroxxx/terradune:1.0.1
+```
+
+With Compose, change the `image:` line, then `docker compose pull` followed by
+`docker compose up`. `docker compose down` removes the container and its network.
+
+Removing Terradune is removing its images, and then the provider data the
+container wrote:
+
+```sh
+docker images ghcr.io/albatroxxx/terradune --format '{{.Repository}}:{{.Tag}}'
+docker rmi ghcr.io/albatroxxx/terradune:1.0.1
+docker image prune   # only the layers nothing else references
+```
+
+`.terradune/` holds Linux provider binaries for one workspace and can be large.
+It is safe to delete and is rebuilt by the next `terraform init` through the
+image. `.terraform/` is not Terradune's — it belongs to whatever Terraform CLI
+you run natively, and deleting it forces you to initialize that again.
+
+```sh
+rm -rf .terradune
+```
+
+An image pinned by digest is not covered by a tag pull. Re-pull the tag, or pull
+the newer digest from the release notes, when you have pinned one.
+
 ## Image Provenance
 
 The Dockerfile pins Go 1.27.1 and the Terraform 1.16.2 base by digest. Terraform is rebuilt from the unmodified upstream `v1.16.2` commit `82e042fb6372443813f6759056308d6adc642fa1` with Go 1.27.1 because the upstream image's bundled Go standard library failed the release vulnerability gate. Alpine security updates are applied during the build. This is a Terradune-distributed build, not HashiCorp's signed release binary; Terraform experiments remain disabled.
