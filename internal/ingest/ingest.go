@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/hashicorp/terraform-exec/tfexec"
 	tfjson "github.com/hashicorp/terraform-json"
@@ -38,6 +39,8 @@ type Resource struct {
 
 // Inventory is everything terradune knows after one plan.
 type Inventory struct {
+	// CLI is the binary that produced this plan: "terraform" or "tofu".
+	CLI              string
 	TerraformVersion string
 	Resources        []Resource
 	Plan             *tfjson.Plan // the raw plan, for graph building
@@ -54,6 +57,38 @@ type Options struct {
 	Refresh  bool     // refresh state before planning
 }
 
+// cliNames are the binaries terradune can drive, in the order it looks for
+// them. OpenTofu is a fork of Terraform and takes the same plan, show and
+// graph commands — the only three terradune runs — so either one satisfies it.
+//
+// The order is for people; the fallback is for packaging. A workspace someone
+// initialized with Terraform should be planned by Terraform, so it wins when
+// both are installed. But Terraform is BUSL-licensed and no Linux distribution
+// ships it, while OpenTofu is Apache-2.0 and most do — accepting it is what
+// lets a .rpm or .deb declare a dependency the distribution can satisfy.
+var cliNames = []string{"terraform", "tofu"}
+
+// FindCLI returns the path of the first CLI terradune can drive, and the name
+// it was found under so the interface can say which one produced a plan.
+func FindCLI() (path, name string, err error) {
+	for _, name := range cliNames {
+		if path, err := exec.LookPath(name); err == nil {
+			return path, name, nil
+		}
+	}
+	return "", "", fmt.Errorf("no %s binary found in PATH",
+		strings.Join(cliNames, " or "))
+}
+
+// DisplayName is how a CLI is written for a reader. An empty name predates
+// knowing which one ran, and Terraform is the safe thing to call it then.
+func DisplayName(cli string) string {
+	if cli == "tofu" {
+		return "OpenTofu"
+	}
+	return "Terraform"
+}
+
 // Load runs plan+show in dir and returns the parsed inventory.
 func Load(ctx context.Context, dir string, opts Options) (*Inventory, error) {
 	abs, err := filepath.Abs(dir)
@@ -63,13 +98,14 @@ func Load(ctx context.Context, dir string, opts Options) (*Inventory, error) {
 	if info, err := os.Stat(abs); err != nil || !info.IsDir() {
 		return nil, fmt.Errorf("%s is not a directory", abs)
 	}
-	if !initialized(abs) {
-		return nil, fmt.Errorf("workspace %s is not initialized — run `terraform init` there first", abs)
-	}
-
-	execPath, err := exec.LookPath("terraform")
+	// Look for the CLI before checking initialization: without one, no advice
+	// about how to initialize is worth giving.
+	execPath, cli, err := FindCLI()
 	if err != nil {
-		return nil, fmt.Errorf("terraform binary not found in PATH: %w", err)
+		return nil, err
+	}
+	if !initialized(abs) {
+		return nil, fmt.Errorf("workspace %s is not initialized — run `%s init` there first", abs, cli)
 	}
 
 	tf, err := tfexec.NewTerraform(abs, execPath)
@@ -100,15 +136,16 @@ func Load(ctx context.Context, dir string, opts Options) (*Inventory, error) {
 	}
 
 	if _, err := tf.Plan(ctx, planOpts...); err != nil {
-		return nil, fmt.Errorf("terraform plan failed: %w", err)
+		return nil, fmt.Errorf("%s plan failed: %w", cli, err)
 	}
 
 	plan, err := tf.ShowPlanFile(ctx, planFile)
 	if err != nil {
-		return nil, fmt.Errorf("terraform show failed: %w", err)
+		return nil, fmt.Errorf("%s show failed: %w", cli, err)
 	}
 
 	inv := fromPlan(plan)
+	inv.CLI = cli
 	// Best effort: the diagram is still useful without it, so a failure here
 	// is not worth failing the whole load for.
 	if dot, err := tf.Graph(ctx, tfexec.GraphPlan(planFile)); err == nil {
@@ -164,7 +201,7 @@ func (inv *Inventory) PrintSummary(w io.Writer) {
 		{StatusCreate, "Will be created"},
 		{StatusDestroy, "Will be destroyed"},
 	}
-	fmt.Fprintf(w, "Terraform %s — %d resources\n", inv.TerraformVersion, len(inv.Resources))
+	fmt.Fprintf(w, "%s %s — %d resources\n", DisplayName(inv.CLI), inv.TerraformVersion, len(inv.Resources))
 	for _, g := range groups {
 		var members []Resource
 		for _, r := range inv.Resources {

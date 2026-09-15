@@ -153,7 +153,7 @@ func run(ctx context.Context, dir, host string, port int, printOnly bool, opts i
 			srv.SetError(ws.Name, ws.Dir, err.Error())
 			return
 		}
-		srv.SetGraph(ws.Name, ws.Dir, inv.TerraformVersion,
+		srv.SetGraph(ws.Name, ws.Dir, inv.CLI, inv.TerraformVersion,
 			graph.BuildWithDOT(inv.Plan, inv.DOT), graph.BuildDetails(inv.Plan))
 		log.Printf("%s: %d resources", ws.Name, len(inv.Resources))
 	}

@@ -1019,6 +1019,12 @@ function summaryHTML(nodes) {
   return parts.length ? `<span style="display:flex;gap:5px">${parts.join('')}</span>` : '';
 }
 
+// The tool that produced a plan, written the way its own project writes it.
+// A workspace planned before this was recorded says nothing, and Terraform is
+// the safe thing to call it then.
+const CLI_NAMES = {terraform: 'Terraform', tofu: 'OpenTofu'};
+const cliName = ws => CLI_NAMES[ws.cli] || 'Terraform';
+
 function renderMap(state) {
   const body = $('mapbody');
   const maps = [];
@@ -1034,7 +1040,7 @@ function renderMap(state) {
 
     const head = `<div class="ws-head">
         <h2>${esc(ws.name)}</h2>
-        <span class="sub">${ws.terraformVersion ? 'terraform ' + esc(ws.terraformVersion) + ' · ' : ''}${(ws.nodes || []).length} resources</span>
+        <span class="sub">${ws.terraformVersion ? esc(cliName(ws)) + ' ' + esc(ws.terraformVersion) + ' · ' : ''}${(ws.nodes || []).length} resources</span>
         ${summaryHTML(ws.nodes)}
         ${ws.rebuilding ? '<span class="spin">re-planning…</span>' : ''}
       </div>`;
