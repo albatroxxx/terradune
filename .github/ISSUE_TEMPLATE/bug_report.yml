@@ -1,0 +1,143 @@
+name: Bug report
+description: Something Terradune does that it should not, or fails to do.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Two things before you start.
+
+        **A vulnerability is not a bug report.** Report it
+        [privately](https://github.com/albatroxxx/terradune/security/advisories/new)
+        instead — see [SECURITY.md](https://github.com/albatroxxx/terradune/blob/main/SECURITY.md).
+
+        **Terraform plans contain secrets.** Terradune masks values Terraform
+        marks sensitive, but not unmarked secrets, resource addresses, IP
+        ranges, account identifiers, file paths, or provider diagnostics.
+        Reproduce against a bundled example or a synthetic workspace, and read
+        anything you paste — output and screenshots alike — before posting it.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Before filing
+      options:
+        - label: This is not a security vulnerability.
+          required: true
+        - label: Nothing I am pasting contains real credentials, account identifiers, or infrastructure I would not publish.
+          required: true
+        - label: I am on the latest release, or I have said below why I cannot be.
+          required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+      placeholder: |
+        Hovering a NAT gateway highlighted the private subnets routing through
+        it, but not the public subnet it sits in.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to reproduce it
+      description: |
+        The most useful report reproduces against something we can both run.
+        Try the bundled examples first — `examples/platform`, `examples/estate`,
+        `examples/layered` — and say which one and what to click.
+
+        If it only happens on your own infrastructure, shrink it to the smallest
+        configuration that still shows the problem and strip anything real.
+        `examples/tools/fakeapply.py` gives a synthetic workspace state so a
+        reproduction can look applied without touching an account.
+      placeholder: |
+        1. terraform -chdir=examples/platform init
+        2. terradune examples/platform
+        3. Open the Resource Map and hover aws_nat_gateway.main[0]
+        4. The public subnet is not highlighted
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Terradune version
+      description: Output of `terradune -version`, or the image tag and digest.
+      placeholder: terradune v1.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How it is installed
+      options:
+        - Docker image
+        - Binary archive from a release
+        - go install
+        - Built from source
+    validations:
+      required: true
+
+  - type: dropdown
+    id: cli
+    attributes:
+      label: Which CLI it is driving
+      description: The workspace header names it. Terradune uses terraform when present and falls back to tofu.
+      options:
+        - Terraform
+        - OpenTofu
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: cli-version
+    attributes:
+      label: Terraform or OpenTofu version
+      description: The workspace header in the interface prints it, as does `terradune -print`.
+      placeholder: Terraform 1.14.4
+
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and architecture
+      placeholder: macOS 15 arm64, or Ubuntu 24.04 amd64
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where it goes wrong
+      options:
+        - Resource Map
+        - Plan
+        - Graph
+        - Resource details
+        - Command line or startup
+        - Live reload after an edit
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      description: Only for anything in the interface.
+      placeholder: Firefox 133, Safari 18
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output
+      description: |
+        Terradune's terminal output, and the browser console for an interface
+        bug. `terradune -print <path>` prints the inventory and dependencies
+        without serving, which is often the most compact way to show a
+        placement or relationship problem — read it before pasting.
+      render: text
