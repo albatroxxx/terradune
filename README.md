@@ -262,6 +262,29 @@ Plan files may contain sensitive data. Inventory metadata and details apply Terr
 
 CI also builds and runs both container architectures through initialization, planning, API checks, and graceful shutdown, then scans the shipped image. A per-workspace scheduler serializes plans and coalesces edits; slow SSE consumers receive the latest snapshot. Release checks and publication gates are documented in the [release runbook](docs/RELEASING.md).
 
+## Reporting A Bug
+
+Open a [bug report](https://github.com/albatroxxx/terradune/issues/new?template=bug_report.yml).
+The form asks for what makes one actionable: the version, how it was installed,
+whether it is driving Terraform or OpenTofu, which view, and steps someone else
+can follow.
+
+**A vulnerability is not a bug report.** Report it
+[privately](https://github.com/albatroxxx/terradune/security/advisories/new)
+instead; see [SECURITY.md](SECURITY.md).
+
+Reproduce against a bundled example wherever you can. `examples/platform`,
+`examples/estate`, and `examples/layered` all run offline, so naming one and the
+steps you took means anyone can see exactly what you saw. If it only happens on
+your own infrastructure, shrink it to the smallest configuration that still
+shows the problem; `examples/tools/fakeapply.py` builds a synthetic applied
+state, so a reproduction never needs a real account.
+
+Terradune masks values Terraform marks sensitive. It does not mask unmarked
+secrets, resource addresses, IP ranges, account identifiers, file paths, or
+provider diagnostics. Read whatever you attach — `terradune -print` output,
+terminal logs, screenshots — before posting it.
+
 ## Contributing
 
 Start with the [makeover plan](docs/MAKEOVER.md) and [prioritized review findings](docs/review/README.md). Add fixtures for new Terraform lifecycle behavior and preserve generic rendering for unfamiliar resource types. Changes should pass tests, formatting, and CI scans.
