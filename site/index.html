@@ -11,7 +11,7 @@
   <meta property="og:title" content="Terradune | Terraform Plan Visualizer for AWS">
   <meta property="og:description" content="See what Terraform will create, change, and connect. A local review workspace, available with Docker or Go.">
   <meta property="og:url" content="https://albatroxxx.github.io/terradune/">
-  <meta property="og:image" content="https://albatroxxx.github.io/terradune/assets/resource-map-2026-09.png">
+  <meta property="og:image" content="https://albatroxxx.github.io/terradune/assets/resource-map-2026-09.jpg">
   <meta property="og:image:alt" content="Terradune Resource Map showing AWS subnets, route tables, gateways, and their connections">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#174f40">
@@ -26,12 +26,12 @@
   <main id="main">
     <section class="hero" aria-labelledby="title">
       <div class="hero-copy"><p class="eyebrow">LOCAL INFRASTRUCTURE REVIEW</p><h1 id="title">Terradune</h1><p class="lead">See what Terraform will create, change, and connect.</p><div class="actions"><a class="button primary" href="docs/#docker">Run with Docker</a><a class="button" href="docs/#go">Install with Go</a></div></div>
-      <a class="hero-media" href="assets/resource-map-2026-09.png" aria-label="View the full Terradune Resource Map screenshot"><img src="assets/resource-map-2026-09.png" width="1280" height="720" alt="Terradune's Resource Map, Plan, and Graph tabs above an AWS subnet path connecting its VPC, route table, and NAT gateway" fetchpriority="high"></a>
+      <a class="hero-media" href="assets/resource-map-2026-09.jpg" aria-label="View the full Terradune Resource Map screenshot"><img src="assets/resource-map-2026-09.jpg" width="1280" height="720" alt="Terradune's Resource Map, Plan, and Graph tabs above an AWS subnet path connecting its VPC, route table, and NAT gateway" fetchpriority="high"></a>
     </section>
     <section class="intro band"><div><p class="eyebrow">FROM PLAN TO UNDERSTANDING</p><h2>Three views. One plan.</h2></div><p>AWS infrastructure is easier to review when the changes and their relationships are visible together. Move from the map to every resource, then follow its dependencies.</p></section>
     <section class="views band" aria-label="Product views">
       <div class="view-list"><article><span class="index">01</span><h3>Resource Map</h3><p>VPCs, subnets, routes, gateways, and load balancers, organized by infrastructure role. Pin a path and expand the canvas.</p></article><article><span class="index">02</span><h3>Plan</h3><p>One entry per resource and workspace. Review destructive changes first, search addresses, and filter by service or action.</p></article><article><span class="index">03</span><h3>Graph</h3><p>Inspect direct dependencies or the full graph. Follow routed arrows and open configuration without losing context.</p></article></div>
-      <figure><img src="assets/plan-2026-09.png" width="1280" height="720" alt="Terradune Plan selected between Resource Map and Graph, with service navigation, action counts, and workspace filters" loading="lazy"><figcaption>The Plan register includes resources that do not have a specialized map layout.</figcaption></figure>
+      <figure><img src="assets/plan-2026-09.jpg" width="1280" height="720" alt="Terradune Plan selected between Resource Map and Graph, with service navigation, action counts, and workspace filters" loading="lazy"><figcaption>The Plan register includes resources that do not have a specialized map layout.</figcaption></figure>
     </section>
     <section class="principles band"><div><p class="eyebrow">A TOOL FOR YOUR WORKSPACE</p><h2>Local by design.</h2><p>Terradune runs beside your Terraform configuration. There is no hosted Terradune account and no plan-upload service.</p><p>Terraform still contacts configured providers, backends, and data sources. Terradune never runs <code>terraform apply</code>.</p></div><dl><div><dt>Docker or Go</dt><dd>A non-root container with Terraform included, or a native Go installation using your own Terraform CLI.</dd></div><div><dt>Clear changes</dt><dd>Create, update, replace, destroy, and unchanged states. Unknown values stay distinct from empty ones.</dd></div><div><dt>Honest coverage</dt><dd>Generic managed-resource support, with specialized AWS layouts. Complete Terraform lifecycle parity is not claimed.</dd></div></dl></section>
     <section class="start band"><div><p class="eyebrow">START WITH YOUR NEXT PLAN</p><h2>Keep the CLI. Add the picture.</h2><p>Bring an initialized workspace and the credentials Terraform already needs.</p></div><a class="button primary" href="docs/">Installation guide <span aria-hidden="true">&#8594;</span></a></section>
