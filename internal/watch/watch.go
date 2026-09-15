@@ -25,7 +25,9 @@ func isRelevant(path string) bool {
 }
 
 func skipDir(name string) bool {
-	return name == ".terraform" || name == ".git"
+	data := os.Getenv("TF_DATA_DIR")
+	return name == ".terraform" || name == ".terradune" || name == ".git" ||
+		(data != "" && name == filepath.Base(filepath.Clean(data)))
 }
 
 // Watch observes *.tf/*.tfvars files under root (recursively) and calls

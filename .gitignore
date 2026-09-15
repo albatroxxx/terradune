@@ -1,5 +1,8 @@
 # Terraform workspace artifacts (examples are real workspaces)
 **/.terraform/
+**/.terradune/
+/.cache/
+/dist/
 *.tfstate
 *.tfstate.backup
 # ...except the platform example, whose whole point is to ship already applied.

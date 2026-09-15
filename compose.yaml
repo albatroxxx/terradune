@@ -1,0 +1,14 @@
+services:
+  terradune:
+    image: ghcr.io/albatroxxx/terradune:1.0.0
+    user: "${LOCAL_UID:-10001}:${LOCAL_GID:-10001}"
+    ports:
+      - "127.0.0.1:8383:8383"
+    volumes:
+      - "${TERRAFORM_DIR:-.}:/workspace"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    stop_grace_period: 15s

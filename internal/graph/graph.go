@@ -4,6 +4,7 @@
 package graph
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"regexp"
@@ -12,6 +13,7 @@ import (
 	"strings"
 
 	tfjson "github.com/hashicorp/terraform-json"
+	"github.com/hashicorp/terraform-json/sanitize"
 
 	"github.com/albatroxxx/terradune/internal/ingest"
 )
@@ -71,6 +73,9 @@ func Build(plan *tfjson.Plan) *Graph {
 // resolves the wiring that runs through locals — invisible in plan JSON.
 func BuildWithDOT(plan *tfjson.Plan, dot []byte) *Graph {
 	g := &Graph{}
+	if plan == nil {
+		return g
+	}
 
 	region := planRegion(plan)
 	values := map[string]map[string]string{}
@@ -84,7 +89,7 @@ func BuildWithDOT(plan *tfjson.Plan, dot []byte) *Graph {
 	// Config address -> all live instance addresses of that resource.
 	instances := map[string][]string{}
 	for _, rc := range plan.ResourceChanges {
-		if rc.Mode != tfjson.ManagedResourceMode {
+		if rc == nil || rc.Mode != tfjson.ManagedResourceMode || rc.Change == nil {
 			continue
 		}
 		g.Nodes = append(g.Nodes, Node{
@@ -93,7 +98,7 @@ func BuildWithDOT(plan *tfjson.Plan, dot []byte) *Graph {
 			Name:   rc.Name,
 			Module: rc.ModuleAddress,
 			Status: statusOf(rc.Change.Actions),
-			Meta:   scopeMeta(rc, region, routeMeta(rc, values[rc.Address])),
+			Meta:   scopeMeta(rc, region, displayMeta(rc, values[rc.Address])),
 		})
 		cfgAddr := joinAddr(stripIndexes(rc.ModuleAddress), rc.Type+"."+rc.Name)
 		instances[cfgAddr] = append(instances[cfgAddr], rc.Address)
@@ -224,6 +229,11 @@ func planRegion(plan *tfjson.Plan) string {
 		}
 		for _, ref := range expr.References {
 			name := strings.TrimPrefix(ref, "var.")
+			if plan.Config.RootModule != nil {
+				if variable := plan.Config.RootModule.Variables[name]; variable != nil && variable.Sensitive {
+					continue
+				}
+			}
 			if v, ok := plan.Variables[name]; ok && v != nil {
 				if s, ok := v.Value.(string); ok && s != "" {
 					return s
@@ -360,36 +370,65 @@ func collectValues(mod *tfjson.StateModule, out map[string]map[string]string) {
 		return
 	}
 	for _, res := range mod.Resources {
-		m := map[string]string{}
-		for attr, key := range metaKeys {
-			switch v := res.AttributeValues[attr].(type) {
-			case string:
-				if v != "" {
-					m[key] = v
-				}
-			case float64:
-				// Ports and priorities arrive as JSON numbers; the UI only
-				// ever prints them, so carry them as the text they will be.
-				m[key] = strconv.FormatFloat(v, 'f', -1, 64)
-			case bool:
-				m[key] = strconv.FormatBool(v)
-			}
+		var mask interface{}
+		if len(res.SensitiveValues) > 0 && json.Unmarshal(res.SensitiveValues, &mask) != nil {
+			out[res.Address] = nil
+			continue
 		}
-		if match := ruleCondition(res.AttributeValues); match != "" {
-			m["match"] = match
+		change, err := sanitize.SanitizeChange(&tfjson.Change{After: res.AttributeValues, AfterSensitive: mask}, nil)
+		if err != nil {
+			out[res.Address] = nil
+			continue
 		}
-		if tags, ok := res.AttributeValues["tags"].(map[string]interface{}); ok {
-			if name, ok := tags["Name"].(string); ok && name != "" {
-				m["name"] = name
-			}
-		}
-		if len(m) > 0 {
-			out[res.Address] = m
-		}
+		attrs, _ := change.After.(map[string]interface{})
+		// Even an empty planned result must replace the prior state's metadata.
+		out[res.Address] = metadataOf(attrs)
 	}
 	for _, child := range mod.ChildModules {
 		collectValues(child, out)
 	}
+}
+
+func displayMeta(rc *tfjson.ResourceChange, fallback map[string]string) map[string]string {
+	change, err := sanitize.SanitizeChange(rc.Change, nil)
+	if err != nil {
+		return nil
+	}
+	safe := *rc
+	safe.Change = change
+	attrs := changeAttrs(&safe)
+	if attrs == nil {
+		if rc.Change.BeforeSensitive == true || rc.Change.AfterSensitive == true {
+			return nil
+		}
+		return routeMeta(&safe, fallback)
+	}
+	return routeMeta(&safe, metadataOf(attrs))
+}
+
+func metadataOf(attrs map[string]interface{}) map[string]string {
+	m := map[string]string{}
+	for attr, key := range metaKeys {
+		switch v := attrs[attr].(type) {
+		case string:
+			if v != "" {
+				m[key] = v
+			}
+		case float64:
+			m[key] = strconv.FormatFloat(v, 'f', -1, 64)
+		case bool:
+			m[key] = strconv.FormatBool(v)
+		}
+	}
+	if match := ruleCondition(attrs); match != "" {
+		m["match"] = match
+	}
+	if tags, ok := attrs["tags"].(map[string]interface{}); ok {
+		if name, ok := tags["Name"].(string); ok && name != "" {
+			m["name"] = name
+		}
+	}
+	return m
 }
 
 func statusOf(actions tfjson.Actions) ingest.Status {
