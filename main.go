@@ -1,5 +1,7 @@
-// terradune: Terraform, drawn. One command turns any Terraform codebase into
-// a clear diagram of what it will create — and what already exists.
+// Terradune reviews Terraform plans as resources and relationships. One
+// command plans every initialized workspace beneath a path and serves the
+// result on localhost as three views: Resource Map, Plan, and Graph. It runs
+// plan, show, and graph — never apply.
 package main
 
 import (
