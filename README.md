@@ -167,4 +167,4 @@ Start with the [makeover plan](docs/MAKEOVER.md) and [prioritized review finding
 
 ## License
 
-Terradune is Apache License 2.0. See [LICENSE](LICENSE). The container also includes Terraform under its upstream BUSL-1.1 license and third-party dependencies under their respective licenses. See [Docker packaging](docs/DOCKER.md#image-provenance).
+Terradune is Apache License 2.0. See [LICENSE](LICENSE). Bundled fonts and the layout engine have [their own notices](internal/server/assets/THIRD-PARTY.md). The container also includes Terraform under its upstream BUSL-1.1 license and third-party dependencies under their respective licenses. See [Docker packaging](docs/DOCKER.md#image-provenance).
