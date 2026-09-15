@@ -39,7 +39,10 @@ Download one from the [latest release](https://github.com/albatroxxx/terradune/r
 verify it, and put `terradune` on your `PATH`:
 
 ```sh
-VERSION=1.0.1; OS=darwin; ARCH=arm64
+# Resolve the current release rather than hardcoding one.
+VERSION=$(curl -fsSL https://api.github.com/repos/albatroxxx/terradune/releases/latest |
+  sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+OS=darwin; ARCH=arm64
 BASE=https://github.com/albatroxxx/terradune/releases/download/v$VERSION
 curl -fsSLO "$BASE/terradune_${VERSION}_${OS}_${ARCH}.tar.gz"
 curl -fsSLO "$BASE/checksums.txt"
@@ -57,8 +60,9 @@ cosign verify-blob checksums.txt \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-Binary archives are published from the first release after v1.0.0; v1.0.0 itself
-shipped the container image only.
+Binary archives are published from the first release after v1.0.0. v1.0.0 itself
+shipped the container image only, so these downloads resolve once a later release
+exists; until then, use Docker or Go.
 
 ### Go
 
@@ -107,11 +111,12 @@ gh release view --repo albatroxxx/terradune --json tagName --jq .tagName
 ### Docker
 
 ```sh
-# Update: pull the version you want, then start it as before.
-docker pull ghcr.io/albatroxxx/terradune:1.0.1
+# Update: latest follows the newest release; name a version to pin one.
+docker pull ghcr.io/albatroxxx/terradune:latest
 
-# Remove: drop the images you no longer need.
-docker rmi ghcr.io/albatroxxx/terradune:1.0.1 ghcr.io/albatroxxx/terradune:1.0.0
+# Remove: list what you have, then drop what you no longer need.
+docker images ghcr.io/albatroxxx/terradune --format '{{.Repository}}:{{.Tag}}'
+docker rmi ghcr.io/albatroxxx/terradune:1.0.0
 ```
 
 `1` and `1.0` follow the newest matching release and `latest` follows the newest
@@ -142,8 +147,8 @@ rm "$(command -v terradune)"
 ### Go
 
 ```sh
-# Update: installs over the previous build.
-go install github.com/albatroxxx/terradune@v1.0.1
+# Update: installs over the previous build. A tag such as @v1.0.0 pins one.
+go install github.com/albatroxxx/terradune@latest
 
 # Remove.
 rm "$(go env GOPATH)/bin/terradune"
