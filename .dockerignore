@@ -6,3 +6,9 @@
 !internal/**
 !LICENSE
 !Dockerfile
+**/.terraform/**
+**/.terradune/**
+**/*.tfstate*
+**/*.tfvars*
+**/.aws/**
+**/.env

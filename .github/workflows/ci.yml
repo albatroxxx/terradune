@@ -19,6 +19,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  site:
+    name: Static site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/check-site.py
+
   test:
     name: Build and test (${{ matrix.os }})
     strategy:

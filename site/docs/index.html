@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Install Terradune with Docker or Go | Terradune Docs</title>
+  <meta name="description" content="Install Terradune v1.0.0 with Docker or Go. Configure AWS credentials, initialize Linux providers, and review Terraform plans safely on localhost.">
+  <link rel="canonical" href="https://albatroxxx.github.io/terradune/docs/">
+  <meta name="robots" content="index,follow">
+  <meta property="og:title" content="Install Terradune with Docker or Go">
+  <meta property="og:description" content="The installation, credentials, and compatibility guide for Terradune v1.0.0.">
+  <meta property="og:type" content="website"><meta property="og:url" content="https://albatroxxx.github.io/terradune/docs/">
+  <meta property="og:image" content="https://albatroxxx.github.io/terradune/assets/resource-map.png"><meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="../assets/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/site.css"><script src="../assets/site.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">terradune</a><nav aria-label="Main"><a href="./" aria-current="page">Get started</a><a href="../releases/">v1.0.0</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
+  <main id="main" class="docs-layout"><nav class="docs-nav" aria-label="On this page"><a href="#docker">Docker</a><a href="#go">Go</a><a href="#aws">AWS credentials</a><a href="#review">Review a plan</a><a href="#compatibility">Compatibility</a><a href="#security">Security</a></nav><article class="prose">
+    <p class="eyebrow">GET STARTED / V1.0.0</p><h1>Install Terradune</h1><p>Choose Docker for an image with Terraform included, or Go to use the Terraform CLI already on your machine. Both run the same local review interface.</p>
+    <h2 id="docker">Run with Docker</h2><p>The image supports Linux AMD64 and ARM64, including Docker Desktop on Intel and Apple Silicon machines. Run these commands from your Terraform working directory in a POSIX shell.</p>
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy Docker installation commands">Copy</button><pre><code>IMAGE=ghcr.io/albatroxxx/terradune:1.0.0
+
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$PWD:/workspace" --entrypoint terraform \
+  "$IMAGE" init -input=false
+
+docker run --rm --user "$(id -u):$(id -g)" \
+  --cap-drop ALL --security-opt no-new-privileges \
+  --read-only --tmpfs /tmp:mode=1777 \
+  -p 127.0.0.1:8383:8383 -v "$PWD:/workspace" \
+  "$IMAGE"</code></pre></div>
+    <p>Open <a href="http://localhost:8383">localhost:8383</a>. Stop the foreground container with Ctrl+C.</p>
+    <p class="note">Initialize inside the container even if you already ran <code>terraform init</code> on the host. Linux providers are kept in <code>.terradune/</code>, separate from the host's <code>.terraform/</code>. Add <code>.terradune/</code> to your workspace's <code>.gitignore</code>. The workspace mount must be writable for initialization and state locking.</p>
+    <p>The <code>--user</code> option avoids root-owned files on Linux. On Windows, use WSL2 for the commands above or use the Go installation. Docker Compose and advanced options are in the <a href="https://github.com/albatroxxx/terradune/blob/main/docs/DOCKER.md">Docker guide</a>.</p>
+    <h2 id="go">Install with Go</h2><p>Requires Go 1.27.1 or newer and Terraform on your PATH. Your provider version constraints, backend, and input variables still apply.</p>
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy Go installation commands">Copy</button><pre><code>go install github.com/albatroxxx/terradune@v1.0.0
+terraform -chdir=./infra init
+terradune ./infra</code></pre></div>
+    <p>Make sure Go's binary directory is on your PATH. By default it is the <code>bin</code> directory under <code>go env GOPATH</code>. <code>terradune -version</code> prints the installed release.</p>
+    <h2 id="aws">AWS credentials</h2><p>Terradune uses Terraform's provider authentication. For a local Go installation, keep your usual environment, AWS profile, and credential helpers.</p><p>For Docker, add the following options to <strong>both</strong> initialization and Terradune commands when using an AWS profile:</p>
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy AWS profile Docker options">Copy</button><pre><code>-e AWS_PROFILE -e AWS_REGION \
+-v "$HOME/.aws:/home/terradune/.aws:ro"</code></pre></div>
+    <p>Set <code>AWS_PROFILE</code> on the host first. For SSO, log in on the host before mounting the cache; a read-only mount cannot refresh it. The image does not include the AWS CLI or arbitrary <code>credential_process</code> helpers.</p><p>Alternatively, forward existing short-lived environment credentials with <code>-e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN</code>. Never put credential values in Docker build arguments or committed Compose files.</p>
+    <h2 id="review">Review a plan</h2><p><strong>Resource Map</strong> is the default view. Pin a resource to trace its network path and direct associations. <strong>Plan</strong> lists each managed resource once per workspace. <strong>Graph</strong> shows dependencies, with arrows pointing from a dependent to its prerequisite.</p><p>Use search, action filters, and workspace scope to narrow the review. The expand control hides the header and filters without clearing the current selection. Open resource details to compare values and inspect related resources.</p>
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy Terraform variable example">Copy</button><pre><code>terradune -var-file prod.tfvars -var region=eu-west-2 ./infra</code></pre></div>
+    <p>Docker accepts the same flags after the image name. Use container paths, such as <code>-var-file /workspace/prod.tfvars /workspace</code>. Publish a different host port with <code>-p 127.0.0.1:8484:8383</code> when 8383 is occupied.</p>
+    <h2 id="compatibility">The v1 compatibility boundary</h2>
+    <table><thead><tr><th scope="col">Supported in v1</th><th scope="col">Not yet first-class</th></tr></thead><tbody><tr><td>Managed resource changes, including unfamiliar AWS types</td><td>Data-source inventory and read actions</td></tr><tr><td>Create, update, replace, destroy, unchanged</td><td>Imports, moves, forgotten resources, and output changes</td></tr><tr><td>Module addresses, count, for_each, multiple working directories</td><td>Deferred plans and complete provider-alias account/region modeling</td></tr><tr><td>Unknown values and Terraform sensitivity masks</td><td>Automatic discovery of unmarked secrets</td></tr></tbody></table>
+    <p>The Docker image includes Terraform 1.16.2. The graph suite also uses Terraform 1.14.4 fixtures. Other versions may work but are not a complete compatibility guarantee. Terraform decides whether your providers and configurations can be planned.</p>
+    <h2 id="security">Keep it local</h2><p>Terradune does not run <code>terraform apply</code>. Planning can still contact AWS, data sources, remote backends, and external programs referenced by your configuration. Only run trusted Terraform projects.</p><p>The application has no authentication or TLS termination. Keep Docker's published port bound to <code>127.0.0.1</code>; do not expose it publicly. Sensitive values are masked using Terraform's metadata, but unmarked secrets and provider diagnostics still require care. Use synthetic plans in public screenshots.</p><p>See the <a href="https://github.com/albatroxxx/terradune/blob/main/SECURITY.md">security policy</a> and <a href="https://github.com/albatroxxx/terradune/blob/main/docs/RELEASING.md">release process</a>.</p>
+  </article></main>
+  <footer class="site-footer"><span>Terradune by <a href="https://github.com/albatroxxx">albatroxxx</a></span><nav aria-label="Footer"><a href="../">Overview</a><a href="https://github.com/albatroxxx/terradune/issues">Feedback</a></nav></footer>
+</body></html>

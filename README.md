@@ -12,12 +12,33 @@ Terradune turns initialized Terraform workspaces into a local plan review interf
 
 ![Terradune expanded Resource Map](docs/review/after-resource-map-expanded.png)
 
+**[Website](https://albatroxxx.github.io/terradune/) · [Installation guide](https://albatroxxx.github.io/terradune/docs/) · [v1.0.0 release](https://github.com/albatroxxx/terradune/releases/tag/v1.0.0)**
+
 ## Start Reviewing
 
-Requires Go 1.27+, Terraform on your `PATH`, and an initialized workspace.
+### Docker
+
+The image includes Terraform and supports Linux AMD64 and ARM64. From your Terraform working directory, in a POSIX shell:
 
 ```sh
-go install github.com/albatroxxx/terradune@latest
+IMAGE=ghcr.io/albatroxxx/terradune:1.0.0
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$PWD:/workspace" --entrypoint terraform "$IMAGE" init -input=false
+docker run --rm --user "$(id -u):$(id -g)" \
+  --cap-drop ALL --security-opt no-new-privileges \
+  --read-only --tmpfs /tmp:mode=1777 \
+  -p 127.0.0.1:8383:8383 -v "$PWD:/workspace" "$IMAGE"
+```
+
+Initialize inside the container even if the host is already initialized. Linux providers live in `.terradune/`, separate from native `.terraform/`; add `.terradune/` to your workspace's `.gitignore`. The mount must be writable. Forward credentials to both commands when your backend or provider requires them. See the [Docker guide](docs/DOCKER.md) for AWS profiles, Compose, Windows, and troubleshooting.
+
+### Go
+
+Requires Go 1.27.1+, Terraform on your `PATH`, and an initialized workspace.
+
+```sh
+go install github.com/albatroxxx/terradune@v1.0.0
+terraform -chdir=./infra init
 terradune ./infra
 ```
 
@@ -34,7 +55,7 @@ terradune -var-file prod.tfvars -var region=eu-west-2 ./infra
 terradune -port 8484 ./infra
 ```
 
-Terradune never runs `terraform apply`. It runs `plan`, `show`, and `graph`; planning can contact providers and data sources. Refresh is off by default. The HTTP server binds to localhost.
+Terradune never runs `terraform apply`. It runs `plan`, `show`, and `graph`; planning can contact providers and data sources. Refresh is off by default. Native execution binds to loopback. Docker listens inside the container and the commands above publish only to host loopback. There is no authentication or TLS; do not publish this port to the internet.
 
 ## Three Views, One Plan
 
@@ -79,6 +100,7 @@ Terradune does not invent an instance-level relationship when a plan cannot iden
 | Flag | Default | Purpose |
 | --- | --- | --- |
 | `-port` | `8383` | Local HTTP port |
+| `-host` | `127.0.0.1` or `TERRADUNE_HOST` | Listen IP or localhost; Docker sets `0.0.0.0` internally |
 | `-var-file` | none | Terraform variable file; repeatable |
 | `-var` | none | Terraform `name=value` input; repeatable |
 | `-refresh` | `false` | Refresh state before planning |
@@ -135,7 +157,9 @@ Frontend behavior checks execute the real scripts against plan fixtures using Ja
 
 CI also runs `gosec`, `staticcheck`, `govulncheck`, and Semgrep. Passing local unit tests is not a substitute for those scans. See [the workflow](.github/workflows/ci.yml).
 
-Plan files may contain sensitive data. The details endpoint masks values marked sensitive by Terraform; unmarked secrets cannot be identified automatically. Display metadata still needs the additional hardening described in the review report. Keep Terradune on localhost and use synthetic plans when publishing screenshots.
+Plan files may contain sensitive data. Inventory metadata and details apply Terraform's sensitivity masks, including nested values. Unmarked secrets and provider diagnostics cannot be identified automatically. Keep Terradune on localhost and use synthetic plans when publishing screenshots. See [SECURITY.md](SECURITY.md).
+
+CI also builds and runs both container architectures through initialization, planning, API checks, and graceful shutdown, then scans the shipped image. A per-workspace scheduler serializes plans and coalesces edits; slow SSE consumers receive the latest snapshot. Release checks and publication gates are documented in the [release runbook](docs/RELEASING.md).
 
 ## Contributing
 
@@ -143,4 +167,4 @@ Start with the [makeover plan](docs/MAKEOVER.md) and [prioritized review finding
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE).
+Terradune is Apache License 2.0. See [LICENSE](LICENSE). The container also includes Terraform under its upstream BUSL-1.1 license and third-party dependencies under their respective licenses. See [Docker packaging](docs/DOCKER.md#image-provenance).
