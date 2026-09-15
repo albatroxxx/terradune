@@ -183,7 +183,7 @@ func run(ctx context.Context, dir, host string, port int, printOnly bool, opts i
 		}
 	}()
 
-	log.Printf("terradune serving %q", "http://"+ln.Addr().String())
+	log.Printf("terradune serving %s", strconv.Quote("http://"+ln.Addr().String()))
 	// Timeouts bound how long a stalled client can hold a connection. The
 	// write timeout stays open because /events is a long-lived stream.
 	server := &http.Server{
