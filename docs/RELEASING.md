@@ -20,7 +20,12 @@ Run the **Release** workflow from main, with input `tag=vX.Y.Z`. The first relea
 
 On first publication, GitHub Packages defaults to private. In the package settings, change **only the Terradune container package** to public. The anonymous pull step waits up to five minutes; if it times out, change visibility and rerun the failed job. Public package visibility cannot be reverted to private through GitHub's normal settings. No source workspace or credentials are included in the allowlisted Docker build context.
 
-After the release exists, the `binaries` job runs GoReleaser to append archives for Linux, macOS, and Windows on both architectures, plus `checksums.txt` and its cosign signature. It appends rather than replaces, so the notes and verified digest written by `publish` survive. A packaging mistake should surface earlier than this: CI runs `goreleaser check` and a snapshot build on every pull request.
+After the release exists, the `binaries` job runs GoReleaser to append archives for Linux, macOS, and Windows on both architectures, plus `checksums.txt` and its cosign 3 Sigstore bundle. It appends rather than replaces, so the notes and verified digest written by `publish` survive. CI creates all six snapshot archives, verifies checksums/contents, and executes the host-native archive on Linux, macOS, and Windows. Trusted main-branch CI signs and verifies the snapshot checksums with GitHub OIDC; fork/PR code receives no signing identity.
+
+CI also runs real Terraform 1.16.2 and OpenTofu 1.12.6 integration tests on all
+three operating systems. Locally, set `TERRADUNE_TEST_CLI` to an absolute CLI
+path and run `go test -race -run TestCLIIntegration -v ./internal/ingest`.
+These use only built-in resources and never apply or access a cloud account.
 
 The release includes a multi-platform digest, SBOM, and provenance attestations. A successful Release workflow triggers Pages; the site also supports manual deployment. Pages checks that the advertised stable release exists before deployment. A tag-triggered path remains for future releases, but manual dispatch avoids a prematurely installable tag.
 
@@ -35,8 +40,10 @@ terradune -version
 ```
 
 Check the binaries too: download an archive and `checksums.txt`, confirm the
-checksum, and verify the signature with `cosign verify-blob` against the
-`https://token.actions.githubusercontent.com` issuer.
+checksum, and verify `checksums.txt.sigstore.json` with `cosign verify-blob`
+against the `https://token.actions.githubusercontent.com` issuer and the exact
+release workflow identity. Follow the verification-before-extraction order in
+the README. A valid checksum without an authenticated signature is insufficient.
 
 Use a clean Docker config for the anonymous pull. Confirm both platforms and attestation manifests, the released digest, and the actual version string. If the Go proxy has not indexed a new tag, retry after propagation or use `GOPROXY=direct` for verification.
 
