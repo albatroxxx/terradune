@@ -125,6 +125,15 @@ test('resource dialog has no automated WCAG A/AA violations', async ({ page }, t
   expect(result.violations).toEqual([]);
 });
 
+test('pinned resource map and legend retain readable contrast', async ({ page }, testInfo) => {
+  await page.locator('[data-id="aws_instance.api"] > .card-main').first().click();
+  await page.getByRole('button', { name: 'Legend', exact: true }).click();
+  const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  await testInfo.attach('axe-results', { body: JSON.stringify(result.violations, null, 2), contentType: 'application/json' });
+  await page.screenshot({ path: testInfo.outputPath('pinned-map-legend.png') });
+  expect(result.violations).toEqual([]);
+});
+
 test('dialog returns to its resource after a live update replaces the opener', async ({ page, request }) => {
   await page.getByRole('tab', { name: 'Plan', exact: true }).click();
   const opener = page.locator('.resource-open').first();
