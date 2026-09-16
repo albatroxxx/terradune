@@ -15,6 +15,10 @@ Target useful queries naturally: "Terraform plan visualizer", "visualize Terrafo
 
 ## Owner Launch Checklist
 
+The owner selected LinkedIn and will publish personally. Use the
+[LinkedIn launch pack](LINKEDIN-LAUNCH.md) for copy, image alt text, and the
+synthetic demo script. No post has been submitted by the agent.
+
 1. Verify the URL-prefix property `https://albatroxxx.github.io/terradune/` in Google Search Console, then submit `https://albatroxxx.github.io/terradune/sitemap.xml`. Add the verification file or meta tag through a PR if required. No ranking or indexing guarantee is implied.
 2. Inspect the social preview using the target platform's preview debugger after the site is live. Use only synthetic screenshots.
 3. Publish a short demo of init, map, plan diff, and focused dependencies. Include installation and known boundaries.
