@@ -34,35 +34,32 @@ Initialize inside the container even if the host is already initialized. Linux p
 
 ### Binary
 
-Signed archives are published for Linux, macOS, and Windows on AMD64 and ARM64.
-Download one from the [latest release](https://github.com/albatroxxx/terradune/releases/latest),
-verify it, and put `terradune` on your `PATH`:
+Native archive packaging targets Linux, macOS, and Windows on AMD64 and ARM64.
+The original v1.0.0 release has no binary archives; use Docker or Go until the
+[release assets](https://github.com/albatroxxx/terradune/releases/latest) include
+the archive, `checksums.txt`, and `checksums.txt.sigstore.json`.
+Once those assets are available, verify before extracting:
 
 ```sh
-# Resolve the current release rather than hardcoding one.
+# Requires curl, jq, and cosign 3; run in an empty directory.
+set -e
 VERSION=$(curl -fsSL https://api.github.com/repos/albatroxxx/terradune/releases/latest |
-  sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+  jq -er '.tag_name | ltrimstr("v")')
 OS=darwin; ARCH=arm64
 BASE=https://github.com/albatroxxx/terradune/releases/download/v$VERSION
 curl -fsSLO "$BASE/terradune_${VERSION}_${OS}_${ARCH}.tar.gz"
 curl -fsSLO "$BASE/checksums.txt"
+curl -fsSLO "$BASE/checksums.txt.sigstore.json"
+cosign verify-blob checksums.txt --bundle checksums.txt.sigstore.json \
+  --certificate-identity-regexp '^https://github\.com/albatroxxx/terradune/\.github/workflows/release\.yml@refs/(heads/main|tags/v[0-9]+\.[0-9]+\.[0-9]+)$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 shasum -a 256 --ignore-missing -c checksums.txt
 tar xzf "terradune_${VERSION}_${OS}_${ARCH}.tar.gz" terradune
 ```
 
-`checksums.txt` is signed with cosign in GitHub's OIDC identity, so no key has to
-be distributed:
-
-```sh
-cosign verify-blob checksums.txt \
-  --certificate checksums.txt.pem --signature checksums.txt.sig \
-  --certificate-identity-regexp 'https://github.com/albatroxxx/terradune/.*' \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com
-```
-
-Binary archives are published from the first release after v1.0.0. v1.0.0 itself
-shipped the container image only, so these downloads resolve once a later release
-exists; until then, use Docker or Go.
+The Sigstore bundle contains the signature and verification evidence. Verification
+requires this repository's release workflow identity, not an arbitrary workflow
+or pull request. Windows archives use `.zip` instead of `.tar.gz`.
 
 ### Go
 
@@ -77,9 +74,9 @@ terradune ./infra
 
 Open the printed local URL, normally `http://localhost:8383`. Run `terraform init` in the workspace first. Provider credentials and inputs work the same way they do with Terraform, including AWS profiles, SSO, and environment variables.
 
-Terradune drives `terraform` when it is installed and falls back to `tofu`, so an
-OpenTofu-only machine needs no extra configuration. The workspace header names
-whichever one produced the plan. The container image ships Terraform.
+On current `main`, Terradune drives `terraform` when installed and falls back to
+`tofu`. This OpenTofu support is not in the original published v1.0.0; that release
+requires Terraform. The container image ships Terraform.
 
 ```sh
 # Scan initialized workspaces beneath a directory.

@@ -22,10 +22,9 @@ builds:
     goarch: [amd64, arm64]
     flags:
       - -trimpath
-    # The tag, not the version, so `terradune -version` reads the same however
-    # it was installed: the Dockerfile already passes VERSION=v1.0.0.
+    # Snapshots retain their build suffix rather than impersonating a stable tag.
     ldflags:
-      - -s -w -X main.version={{ .Tag }}
+      - -s -w -X main.version=v{{ .Version }}
 
 archives:
   - id: terradune
@@ -46,12 +45,11 @@ checksum:
 signs:
   - cmd: cosign
     artifacts: checksum
-    certificate: '${artifact}.pem'
+    signature: '${artifact}.sigstore.json'
     args:
       - sign-blob
       - --yes
-      - --output-certificate=${certificate}
-      - --output-signature=${signature}
+      - --bundle=${signature}
       - ${artifact}
 
 release:
