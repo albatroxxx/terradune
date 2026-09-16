@@ -16,6 +16,38 @@ let reviewService = '', reviewWorkspace = '', changesOnly = false, reviewSort = 
 let graphFocus = null;
 
 function resourceKey(workspace, address) { return JSON.stringify([workspace, address]); }
+
+// Resolve a control again after its DOM is replaced. Map resources can appear
+// in more than one context, so retain the occurrence as well as its identity.
+function focusReference(element) {
+  if (!element) return () => null;
+  if (element.id) return () => document.getElementById(element.id);
+  let selector;
+  for (const [kind, attr] of [['.chip', 'data-status'], ['#service-nav button', 'data-service'],
+    ['.resource-open', 'data-resource'], ['.relationship-open', 'data-resource'], ['.graph-node', 'data-key']]) {
+    if (element.matches(kind)) {
+      selector = `${kind}[${attr}="${CSS.escape(element.getAttribute(attr))}"]`;
+      break;
+    }
+  }
+  const card = element.closest('.card');
+  if (card && (element.classList.contains('card-main') || element.classList.contains('card-detail'))) {
+    const kind = element.classList.contains('card-main') ? 'card-main' : 'card-detail';
+    selector = `.card[data-ws="${CSS.escape(card.dataset.ws)}"][data-id="${CSS.escape(card.dataset.id)}"] > .${kind}`;
+  }
+  if (!selector) return () => element.isConnected ? element : null;
+  const index = [...document.querySelectorAll(selector)].indexOf(element);
+  return () => document.querySelectorAll(selector)[index] || null;
+}
+
+function preserveFocus() {
+  const element = document.activeElement, resolve = focusReference(element);
+  return () => {
+    if (element && !element.isConnected && document.activeElement === document.body && !$('drawer').open) {
+      (resolve() || $(expandedView ? 'expand-view' : 'q')).focus({preventScroll: true});
+    }
+  };
+}
 function serviceOf(type) {
   const known = SERVICES.find(s => s[1].test(type));
   if (known) return {name: known[0], icon: known[2]};
@@ -56,6 +88,7 @@ function scopedState(state) {
 }
 
 function renderReview(state) {
+  const restoreFocus = preserveFocus();
   const all = inventoryRows(state), rows = sortedReviewRows(state);
   const counts = new Map();
   for (const row of all) counts.set(row.service.name, (counts.get(row.service.name) || 0) + 1);
@@ -100,6 +133,7 @@ function renderReview(state) {
       } else openDetail(row.ws.name, row.node.id, button);
     });
   }
+  restoreFocus();
 }
 
 function relationshipState(state) {

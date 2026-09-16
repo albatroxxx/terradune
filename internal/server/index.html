@@ -840,6 +840,7 @@ function visibleIn(ws, m) {
 }
 
 function renderChips(state) {
+  const restoreFocus = preserveFocus();
   const counts = {};
   for (const s of STATUSES) counts[s] = 0;
   for (const ws of state.workspaces || []) {
@@ -857,6 +858,7 @@ function renderChips(state) {
     });
   }
   $('clear').hidden = !filterActive() && !reviewService && !changesOnly && !reviewWorkspace;
+  restoreFocus();
 }
 
 let RENDER_WS = ''; // workspace whose cards are being emitted
@@ -1026,6 +1028,7 @@ const CLI_NAMES = {terraform: 'Terraform', tofu: 'OpenTofu'};
 const cliName = ws => CLI_NAMES[ws.cli] || 'Terraform';
 
 function renderMap(state) {
+  const restoreFocus = preserveFocus();
   const body = $('mapbody');
   const maps = [];
   let shown = 0, total = 0;
@@ -1071,6 +1074,7 @@ function renderMap(state) {
   $('shown').textContent = filterActive() ? `${shown} of ${total} shown` : `${total} resources`;
   drawRibbons(maps);
   wireHover(maps);
+  restoreFocus();
 }
 
 const RIBBON_HOT = '#17654f', RIBBON_REL = '#496b96';
@@ -1406,11 +1410,12 @@ function relatedHTML(r) {
   </details>`;
 }
 
-let detailRequest = 0, detailOpener = null;
+let detailRequest = 0, detailOpener = null, detailFocus = null;
 async function openDetail(wsName, address, opener) {
   const request = ++detailRequest;
   const drawer = $('drawer');
   detailOpener = opener || document.activeElement;
+  detailFocus = focusReference(detailOpener);
   $('dr-ico').innerHTML = '';
   $('dr-pill').textContent = '';
   $('dr-pill').className = '';
@@ -1454,9 +1459,10 @@ function closeDetail() {
   ++detailRequest;
   $('drawer').classList.remove('open');
   $('drawer').close();
-  if (detailOpener?.isConnected) detailOpener.focus();
-  else $('q').focus();
+  const target = detailOpener?.isConnected ? detailOpener : detailFocus?.();
+  (target || $(expandedView ? 'expand-view' : 'q')).focus({preventScroll: true});
   detailOpener = null;
+  detailFocus = null;
 }
 $('dr-close').onclick = closeDetail;
 $('drawer').addEventListener('cancel', e => { e.preventDefault(); closeDetail(); });
@@ -1597,6 +1603,7 @@ function toElk(state, includeContext = false) {
 }
 
 function drawGraph(layout) {
+  const restoreFocus = preserveFocus();
   graphLayout = layout;
   world.innerHTML = '';
   const defs = document.createElementNS(svgNS, 'defs');
@@ -1671,6 +1678,7 @@ function drawGraph(layout) {
   if (firstGraphDraw && layout.width) {
     fitGraph(); firstGraphDraw = false;
   }
+  restoreFocus();
 }
 
 // ---------- tabs + live state -------------------------------------------

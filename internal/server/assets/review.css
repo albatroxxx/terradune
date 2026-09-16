@@ -1,4 +1,4 @@
-:root { --bg: #f6f8f8; --text: #192e2a; --muted: #5b6c69; --faint: #697c78;
+:root { --bg: #f6f8f8; --text: #192e2a; --muted: #5b6c69; --faint: #5c706a;
   --line: #dce5e2; --line-soft: #e8eeec; --sunken: #f0f5f3; --accent: #17654f; }
 body { letter-spacing: 0; }
 header { padding: 14px 24px; gap: 12px; }

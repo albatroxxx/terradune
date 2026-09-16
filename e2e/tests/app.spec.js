@@ -9,7 +9,11 @@ test.beforeEach(async ({ page }) => {
 async function graphReady(page) {
   await expect(page.locator('#graph')).toHaveAttribute('aria-busy', 'false');
   await expect(page.locator('.graph-node').first()).toBeVisible();
-  await expect(page.locator('.edge').first()).toBeVisible();
+  const edge = page.locator('.edge').first();
+  await expect(edge).toBeAttached();
+  expect(await edge.evaluate(el => el.getTotalLength())).toBeGreaterThan(0);
+  await expect(edge).toHaveCSS('visibility', 'visible');
+  await expect(edge).not.toHaveCSS('stroke', 'none');
 }
 
 test('tabs follow keyboard order and expand without losing the current view', async ({ page }) => {
@@ -52,7 +56,7 @@ test('plan filters and resource details work with the keyboard', async ({ page }
 
 test('legend and pinned map path unwind one layer per Escape', async ({ page }) => {
   await page.getByRole('button', { name: 'Legend', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Connections' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Connections', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Legend', exact: true })).toBeFocused();
   const pin = page.locator('[data-id="aws_instance.api"] > .card-main').first();
@@ -78,7 +82,7 @@ test('focused graph has real edges and keyboard-operable resources', async ({ pa
 });
 
 for (const target of ['resource', 'service', 'action', 'map', 'graph']) {
-  test(`live updates preserve ${target} keyboard focus`, async ({ page, request }) => {
+  test(`live updates preserve ${target} keyboard focus`, async ({ page, request }, testInfo) => {
     let control;
     if (target === 'map') control = page.locator('[data-id="aws_instance.api"] > .card-main').first();
     else if (target === 'graph') {
@@ -96,6 +100,7 @@ for (const target of ['resource', 'service', 'action', 'map', 'graph']) {
     // A fresh node proves that the SSE-triggered paint, not just the HTTP call, completed.
     await expect(page.locator('[data-e2e-before-refresh]')).toHaveCount(0);
     await expect(control).toBeFocused();
+    await page.screenshot({ path: testInfo.outputPath(`focus-${target}.png`) });
   });
 }
 
@@ -116,7 +121,30 @@ test('resource dialog has no automated WCAG A/AA violations', async ({ page }, t
   await expect(page.getByRole('heading', { name: 'Configuration', exact: true })).toBeVisible();
   const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   await testInfo.attach('axe-results', { body: JSON.stringify(result.violations, null, 2), contentType: 'application/json' });
+  await page.screenshot({ path: testInfo.outputPath('resource-dialog.png') });
   expect(result.violations).toEqual([]);
+});
+
+test('dialog returns to its resource after a live update replaces the opener', async ({ page, request }) => {
+  await page.getByRole('tab', { name: 'Plan', exact: true }).click();
+  const opener = page.locator('.resource-open').first();
+  await opener.evaluate(el => el.setAttribute('data-e2e-before-refresh', 'true'));
+  await opener.click();
+  await request.post('/__test/refresh');
+  await expect(page.locator('[data-e2e-before-refresh]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Close details' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(opener).toBeFocused();
+});
+
+test('a pending graph layout never steals focus from the search field', async ({ page, request }) => {
+  await page.getByRole('tab', { name: 'Graph', exact: true }).click();
+  await graphReady(page);
+  await page.locator('.graph-node').first().focus();
+  await request.post('/__test/refresh');
+  await page.getByRole('searchbox').focus();
+  await graphReady(page);
+  await expect(page.getByRole('searchbox')).toBeFocused();
 });
 
 for (const width of [320, 390]) {
