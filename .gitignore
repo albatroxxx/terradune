@@ -3,6 +3,10 @@
 **/.terradune/
 /.cache/
 /dist/
+# Browser-only development dependencies and artifacts
+/e2e/node_modules/
+/e2e/test-results/
+/e2e/playwright-report/
 *.tfstate
 *.tfstate.backup
 # ...except the platform example, whose whole point is to ship already applied.
