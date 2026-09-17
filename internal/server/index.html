@@ -979,7 +979,11 @@ function panelHTML(p, m, vis) {
         const inside = keep(p.contents.get(s.id) || []);
         const nested = inside.length
           ? `<div class="contents">${inside.map(c => cardHTML(c)).join('')}</div>` : '';
-        return cardHTML(s, [m.subnetPublic.get(s.id) ? 'public' : 'private',
+        // Public and private are answers; a subnet with no known route table
+        // association is a question, and labelling it private would state an
+        // answer the plan never gave.
+        return cardHTML(s, [m.subnetPublic.has(s.id)
+                              ? (m.subnetPublic.get(s.id) ? 'public' : 'private') : null,
                             s.meta?.cidr].filter(Boolean).join(' · '), nested);
       }).join('')}
     </div>`).join('') || '<div class="empty">none</div>';

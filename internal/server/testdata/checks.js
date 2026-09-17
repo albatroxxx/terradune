@@ -1002,6 +1002,48 @@ check('a plan is labelled with the tool that produced it', function () {
   renderMap(STATE);
 });
 
+// --- issue #23: for_each associations and the public/private label -------
+check('for_each subnets reach their route table and read as public', function () {
+  filter.text = ''; filter.statuses = new Set();
+  var ws = null;
+  for (var i = 0; i < STATE.workspaces.length; i++) {
+    if (STATE.workspaces[i].name === 'foreach') ws = STATE.workspaces[i];
+  }
+  if (!ws) throw new Error('no foreach workspace in fixtures');
+  var m = buildMap(ws);
+  ['aws_subnet.public["0"]', 'aws_subnet.public["1"]'].forEach(function (id) {
+    if (m.subnetPublic.get(id) !== true) {
+      throw new Error(id + ' is not classified public: ' +
+        JSON.stringify(Array.from(m.subnetPublic.entries())));
+    }
+  });
+  // And the instance pairing held: each subnet is associated with the route
+  // table by its own association, not by its sibling's.
+  renderMap({workspaces: [ws]});
+  var h = __sinks['mapbody'] || '';
+  if (h.indexOf('private') !== -1) throw new Error('a for_each subnet still reads private');
+  renderMap(STATE);
+});
+
+check('a subnet with no known association claims neither public nor private', function () {
+  // The plan can genuinely not know: no association resolved, ids unknown.
+  var ws = {name: 'bare', nodes: [
+    {id: 'aws_vpc.v', type: 'aws_vpc', name: 'v', module: '', status: 'create',
+     meta: {provider: 'aws', scope: 'region'}},
+    {id: 'aws_subnet.s', type: 'aws_subnet', name: 's', module: '', status: 'create',
+     meta: {provider: 'aws', scope: 'vpc', cidr: '10.9.0.0/24'}},
+  ], edges: [{from: 'aws_subnet.s', to: 'aws_vpc.v'}]};
+  var m = buildMap(ws);
+  if (m.subnetPublic.has('aws_subnet.s')) throw new Error('publicness invented from nothing');
+  renderMap({workspaces: [ws]});
+  var h = __sinks['mapbody'] || '';
+  if (h.indexOf('private') !== -1 || h.indexOf('public ·') !== -1) {
+    throw new Error('an unknowable subnet was labelled anyway');
+  }
+  if (h.indexOf('10.9.0.0/24') === -1) throw new Error('the cidr disappeared with the label');
+  renderMap(STATE);
+});
+
 checkDetailRequests().then(function () {
   if (__failures) print('\n' + __failures + ' FAILURE(S)');
   else print('\nALL CHECKS PASSED');
