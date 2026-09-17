@@ -1,6 +1,6 @@
 services:
   terradune:
-    image: ghcr.io/albatroxxx/terradune:1.0.1
+    image: ghcr.io/albatroxxx/terradune:1.0.2
     user: "${LOCAL_UID:-10001}:${LOCAL_GID:-10001}"
     ports:
       - "127.0.0.1:8383:8383"

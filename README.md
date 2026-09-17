@@ -21,7 +21,7 @@ Terradune turns initialized Terraform workspaces into a local plan review interf
 The image includes Terraform and supports Linux AMD64 and ARM64. From your Terraform working directory, in a POSIX shell:
 
 ```sh
-# :latest follows the newest release; pin a version such as :1.0.1 when you
+# :latest follows the newest release; pin a version such as :1.0.2 when you
 # need the same image back, or the digest from the release notes for immutability.
 IMAGE=ghcr.io/albatroxxx/terradune:latest
 docker run --rm --user "$(id -u):$(id -g)" \
@@ -68,7 +68,7 @@ Requires Go 1.27.1+, a Terraform or OpenTofu CLI on your `PATH`, and an
 initialized workspace.
 
 ```sh
-# @latest resolves the newest release; a tag such as @v1.0.1 pins one.
+# @latest resolves the newest release; a tag such as @v1.0.2 pins one.
 go install github.com/albatroxxx/terradune@latest
 terraform -chdir=./infra init
 terradune ./infra
@@ -147,7 +147,7 @@ rm "$(command -v terradune)"
 ### Go
 
 ```sh
-# Update: installs over the previous build. A tag such as @v1.0.1 pins one.
+# Update: installs over the previous build. A tag such as @v1.0.2 pins one.
 go install github.com/albatroxxx/terradune@latest
 
 # Remove.

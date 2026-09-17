@@ -14,7 +14,7 @@ Relative data directories resolve per workspace. An absolute `TF_DATA_DIR` selec
 
 ```sh
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/workspace" \
-  --entrypoint terraform ghcr.io/albatroxxx/terradune:1.0.1 workspace select staging
+  --entrypoint terraform ghcr.io/albatroxxx/terradune:1.0.2 workspace select staging
 ```
 
 Do not run native and container Terraform against the same state concurrently. Keep state locking enabled. Add `.terradune/` to your infrastructure repository's `.gitignore`; never commit state, plans, credentials, or secret variable files.
@@ -60,7 +60,7 @@ Use `-p 127.0.0.1:8484:8383` if port 8383 is occupied. Arguments after the image
 ```sh
 docker run --rm --user "$(id -u):$(id -g)" \
   -p 127.0.0.1:8383:8383 -v "$PWD:/workspace" \
-  ghcr.io/albatroxxx/terradune:1.0.1 -var-file /workspace/prod.tfvars /workspace
+  ghcr.io/albatroxxx/terradune:1.0.2 -var-file /workspace/prod.tfvars /workspace
 ```
 
 `/healthz` checks HTTP liveness, not successful planning. Inspect the UI's workspace error state or use `-print` for a one-shot command that exits nonzero when planning fails. SIGINT/SIGTERM cancels active Terraform commands and closes SSE clients before exiting.
