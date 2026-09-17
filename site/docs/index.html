@@ -3,22 +3,23 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Install Terradune with Docker or Go | Terradune Docs</title>
-  <meta name="description" content="Install Terradune v1.0.0 with Docker or Go. Configure AWS credentials, initialize Linux providers, and review Terraform plans safely on localhost.">
+  <meta name="description" content="Install the latest Terradune with Docker or Go. Configure AWS credentials, initialize Linux providers, and review Terraform plans safely on localhost.">
   <link rel="canonical" href="https://albatroxxx.github.io/terradune/docs/">
   <meta name="robots" content="index,follow">
   <meta property="og:title" content="Install Terradune with Docker or Go">
-  <meta property="og:description" content="The installation, credentials, and compatibility guide for Terradune v1.0.0.">
+  <meta property="og:description" content="The installation, credentials, and compatibility guide for Terradune.">
   <meta property="og:type" content="website"><meta property="og:url" content="https://albatroxxx.github.io/terradune/docs/">
   <meta property="og:image" content="https://albatroxxx.github.io/terradune/assets/resource-map-2026-09.jpg"><meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="../assets/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/site.css"><script src="../assets/site.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
-  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">terradune</a><nav aria-label="Main"><a href="./" aria-current="page">Get started</a><a href="../releases/">v1.0.0</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
+  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">Terradune</a><nav aria-label="Main"><a href="./" aria-current="page">Get started</a><a href="../releases/">v1.0.1</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
   <main id="main" class="docs-layout"><nav class="docs-nav" aria-label="On this page"><a href="#docker">Docker</a><a href="#go">Go</a><a href="#aws">AWS credentials</a><a href="#review">Review a plan</a><a href="#compatibility">Compatibility</a><a href="#security">Security</a></nav><article class="prose">
-    <p class="eyebrow">GET STARTED / V1.0.0</p><h1>Install Terradune</h1><p>Choose Docker for an image with Terraform included, or Go to use the Terraform CLI already on your machine. Both run the same local review interface.</p>
+    <p class="eyebrow">GET STARTED</p><h1>Install Terradune</h1><p>Choose Docker for an image with Terraform included, or Go to use the Terraform CLI already on your machine. Both run the same local review interface.</p>
     <h2 id="docker">Run with Docker</h2><p>The image supports Linux AMD64 and ARM64, including Docker Desktop on Intel and Apple Silicon machines. Run these commands from your Terraform working directory in a POSIX shell.</p>
-    <div class="code-block"><button type="button" class="copy" aria-label="Copy Docker installation commands">Copy</button><pre><code>IMAGE=ghcr.io/albatroxxx/terradune:1.0.0
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy Docker installation commands">Copy</button><pre><code># :latest follows the newest release; pin :1.0.1 for reproducibility.
+IMAGE=ghcr.io/albatroxxx/terradune:latest
 
 docker run --rm --user "$(id -u):$(id -g)" \
   -v "$PWD:/workspace" --entrypoint terraform \
@@ -33,7 +34,8 @@ docker run --rm --user "$(id -u):$(id -g)" \
     <p class="note">Initialize inside the container even if you already ran <code>terraform init</code> on the host. Linux providers are kept in <code>.terradune/</code>, separate from the host's <code>.terraform/</code>. Add <code>.terradune/</code> to your workspace's <code>.gitignore</code>. The workspace mount must be writable for initialization and state locking.</p>
     <p>The <code>--user</code> option avoids root-owned files on Linux. On Windows, use WSL2 for the commands above or use the Go installation. Docker Compose and advanced options are in the <a href="https://github.com/albatroxxx/terradune/blob/main/docs/DOCKER.md">Docker guide</a>.</p>
     <h2 id="go">Install with Go</h2><p>Requires Go 1.27.1 or newer and Terraform on your PATH. Your provider version constraints, backend, and input variables still apply.</p>
-    <div class="code-block"><button type="button" class="copy" aria-label="Copy Go installation commands">Copy</button><pre><code>go install github.com/albatroxxx/terradune@v1.0.0
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy Go installation commands">Copy</button><pre><code># @latest resolves the newest release; @v1.0.1 pins one.
+go install github.com/albatroxxx/terradune@latest
 terraform -chdir=./infra init
 terradune ./infra</code></pre></div>
     <p>Make sure Go's binary directory is on your PATH. By default it is the <code>bin</code> directory under <code>go env GOPATH</code>. <code>terradune -version</code> prints the installed release.</p>

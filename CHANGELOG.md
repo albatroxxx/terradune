@@ -1,15 +1,36 @@
 # Changelog
 
-## Unreleased
+## 1.0.1
+
+The first release with native binary archives, and the release the
+latest-oriented installation instructions resolve to.
 
 ### Added
 
 - Signed binary archives for Linux, macOS, and Windows on AMD64 and ARM64,
-  appended to each release by GoReleaser with `checksums.txt` and a keyless
-  cosign signature. CI validates the release config and cross-builds on every
-  pull request.
+  attached to the release with `checksums.txt` and a keyless cosign Sigstore
+  bundle. CI builds all six archives on every pull request, verifies their
+  checksums and contents, executes the host-native binary on three operating
+  systems, and rehearses the signing round trip on trusted main.
 - OpenTofu is accepted when Terraform is not installed. Terraform still wins
   when both are present, and the interface names whichever produced the plan.
+  Real Terraform 1.16.2 and OpenTofu 1.12.6 integration tests run on Linux,
+  macOS, and Windows.
+- A browser and accessibility suite drives the real embedded interface in
+  Chromium, Firefox, and WebKit: keyboard navigation, dialogs, automated
+  WCAG A/AA checks, and responsive layouts down to 320px.
+- A bug report form asking for the version, install method, CLI, view, and a
+  synthetic reproduction; update and removal instructions for every install
+  method.
+
+### Fixed
+
+- Live plan updates no longer drop keyboard focus: the focused control is
+  re-resolved after each redraw, and a details dialog returns focus to its
+  rebuilt opener. Dimmed map cards and drawer counts keep WCAG AA contrast.
+- The interface titles itself "Terradune" in the browser tab and header.
+- Installation examples no longer hardcode versions that may not exist; they
+  resolve the latest release and show how to pin.
 
 ## 1.0.0
 
