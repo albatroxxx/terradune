@@ -187,7 +187,13 @@ jobs:
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Sign and verify the packaged checksums
         env:
-          IDENTITY: https://github.com/${{ github.workflow_ref }}
+          # The certificate names the workflow that defines this job — this
+          # file — not the caller. github.workflow_ref names the caller, so it
+          # matched on standalone runs and broke the first time release.yml
+          # called this workflow. The real release signature is produced by
+          # release.yml itself and verifies against that identity; this
+          # rehearsal verifies its own.
+          IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/ci.yml@${{ github.ref }}
         run: |
           cosign sign-blob --yes --bundle=dist/checksums.txt.sigstore.json dist/checksums.txt
           cosign verify-blob --bundle=dist/checksums.txt.sigstore.json \
