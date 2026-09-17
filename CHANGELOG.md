@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Subnets whose route table associations use `for_each` are classified
+  correctly before apply: the resolver now reads the `for_each` expression, so
+  an association iterating a subnet resource pairs with that subnet by key
+  (#23). A subnet with no known association shows no public/private label at
+  all, instead of claiming "private".
+
 ## 1.0.1
 
 The first release with native binary archives, and the release the

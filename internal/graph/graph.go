@@ -530,6 +530,25 @@ func (r *resolver) walkModule(mod *tfjson.ConfigModule, moduleAddr string) {
 			}
 			groups = append(groups, refGroup{refs: refs}) // depends_on is resource-level: full fan-out
 		}
+		// A resource iterated with for_each over another resource takes that
+		// resource's keys as its own, so instance k was built from — and
+		// refers to, through each.value — the target's instance k. That is
+		// stated by Terraform's semantics, not guessed, which is what makes
+		// key pairing right here. Where the collection was re-keyed on the
+		// way, the keys simply stop matching and no edge is drawn, the same
+		// silence as before.
+		//
+		// Without this, subnet_id = each.value.id resolves to nothing at all:
+		// each.* carries no resource dependency, and the reference that does
+		// lives in the for_each expression, which plan JSON keeps out of
+		// Expressions.
+		if res.ForEachExpression != nil {
+			refs := map[string]bool{}
+			collectRefs(res.ForEachExpression, refs)
+			if len(refs) > 0 {
+				groups = append(groups, refGroup{refs: refs, paired: true})
+			}
+		}
 
 		for _, grp := range groups {
 			t := &targets{cfg: map[string]bool{}, pinned: map[string]map[string]bool{}}

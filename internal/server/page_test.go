@@ -61,6 +61,7 @@ func stateFromFixtures(t *testing.T) []byte {
 	for _, f := range []struct{ name, path string }{
 		{"ec2", "ec2_plan.json"},
 		{"estate", "estate_plan.json"},
+		{"foreach", "foreach_plan.json"},
 		{"layered", "layered_plan.json"},
 		{"modular", "modular_plan.json"},
 		{"platform", "platform_plan.json"},

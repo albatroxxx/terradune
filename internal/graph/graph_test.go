@@ -335,3 +335,37 @@ func TestBuildEstateSpansManyServices(t *testing.T) {
 		t.Error("a data subnet is wired to the app VPC")
 	}
 }
+
+// The foreach fixture is issue #23: subnets and their route table
+// associations both created with for_each, subnet_id wired through
+// each.value, and the workspace never applied — so every id is unknown and
+// the association's only path to its subnet is the for_each expression.
+func TestForEachAssociationsPairBySharedKey(t *testing.T) {
+	g := Build(loadFixture(t, "testdata/foreach_plan.json"))
+
+	edges := map[Edge]bool{}
+	for _, e := range g.Edges {
+		edges[e] = true
+	}
+	// for_each over a resource takes that resource's keys, so instance k
+	// refers to the target's instance k — stated, not guessed.
+	for _, key := range []string{`"0"`, `"1"`} {
+		want := Edge{
+			From: "aws_route_table_association.public[" + key + "]",
+			To:   "aws_subnet.public[" + key + "]",
+		}
+		if !edges[want] {
+			t.Errorf("missing paired edge %s -> %s", want.From, want.To)
+		}
+	}
+	// Pairing must not become fan-out: the cross edges would say every
+	// association reaches every subnet.
+	for _, wrong := range []Edge{
+		{From: `aws_route_table_association.public["0"]`, To: `aws_subnet.public["1"]`},
+		{From: `aws_route_table_association.public["1"]`, To: `aws_subnet.public["0"]`},
+	} {
+		if edges[wrong] {
+			t.Errorf("unexpected cross edge %s -> %s", wrong.From, wrong.To)
+		}
+	}
+}
