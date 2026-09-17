@@ -20,6 +20,12 @@ concurrency:
 jobs:
   verify:
     uses: ./.github/workflows/ci.yml
+    # A called workflow may not exceed its caller's grant, and that is checked
+    # at parse time: CI's signing rehearsal requests id-token, so the call must
+    # allow it or the whole Release workflow fails before any job starts.
+    permissions:
+      contents: read
+      id-token: write
 
   publish:
     needs: verify
