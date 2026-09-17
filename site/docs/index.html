@@ -14,11 +14,11 @@
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
-  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">Terradune</a><nav aria-label="Main"><a href="./" aria-current="page">Get started</a><a href="../releases/">v1.0.1</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
+  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">Terradune</a><nav aria-label="Main"><a href="./" aria-current="page">Get started</a><a href="../releases/">v1.0.2</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
   <main id="main" class="docs-layout"><nav class="docs-nav" aria-label="On this page"><a href="#docker">Docker</a><a href="#go">Go</a><a href="#aws">AWS credentials</a><a href="#review">Review a plan</a><a href="#compatibility">Compatibility</a><a href="#security">Security</a></nav><article class="prose">
     <p class="eyebrow">GET STARTED</p><h1>Install Terradune</h1><p>Choose Docker for an image with Terraform included, or Go to use the Terraform CLI already on your machine. Both run the same local review interface.</p>
     <h2 id="docker">Run with Docker</h2><p>The image supports Linux AMD64 and ARM64, including Docker Desktop on Intel and Apple Silicon machines. Run these commands from your Terraform working directory in a POSIX shell.</p>
-    <div class="code-block"><button type="button" class="copy" aria-label="Copy Docker installation commands">Copy</button><pre><code># :latest follows the newest release; pin :1.0.1 for reproducibility.
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy Docker installation commands">Copy</button><pre><code># :latest follows the newest release; pin :1.0.2 for reproducibility.
 IMAGE=ghcr.io/albatroxxx/terradune:latest
 
 docker run --rm --user "$(id -u):$(id -g)" \
@@ -34,7 +34,7 @@ docker run --rm --user "$(id -u):$(id -g)" \
     <p class="note">Initialize inside the container even if you already ran <code>terraform init</code> on the host. Linux providers are kept in <code>.terradune/</code>, separate from the host's <code>.terraform/</code>. Add <code>.terradune/</code> to your workspace's <code>.gitignore</code>. The workspace mount must be writable for initialization and state locking.</p>
     <p>The <code>--user</code> option avoids root-owned files on Linux. On Windows, use WSL2 for the commands above or use the Go installation. Docker Compose and advanced options are in the <a href="https://github.com/albatroxxx/terradune/blob/main/docs/DOCKER.md">Docker guide</a>.</p>
     <h2 id="go">Install with Go</h2><p>Requires Go 1.27.1 or newer and Terraform on your PATH. Your provider version constraints, backend, and input variables still apply.</p>
-    <div class="code-block"><button type="button" class="copy" aria-label="Copy Go installation commands">Copy</button><pre><code># @latest resolves the newest release; @v1.0.1 pins one.
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy Go installation commands">Copy</button><pre><code># @latest resolves the newest release; @v1.0.2 pins one.
 go install github.com/albatroxxx/terradune@latest
 terraform -chdir=./infra init
 terradune ./infra</code></pre></div>
