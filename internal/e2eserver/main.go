@@ -9,6 +9,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"net/netip"
 	"os"
 	"time"
 
@@ -20,6 +21,10 @@ import (
 func main() {
 	addr := flag.String("addr", "127.0.0.1:18393", "loopback listen address")
 	flag.Parse()
+	listen, err := netip.ParseAddrPort(*addr)
+	if err != nil || !listen.Addr().IsLoopback() {
+		log.Fatal("the test server requires a loopback IP address")
+	}
 	data, err := os.ReadFile("internal/graph/testdata/platform_plan.json")
 	if err != nil {
 		log.Fatal(err)
