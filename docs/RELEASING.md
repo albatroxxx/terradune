@@ -32,10 +32,10 @@ The release includes a multi-platform digest, SBOM, and provenance attestations.
 ## Verify After Publication
 
 ```sh
-gh release view v1.0.0
-docker buildx imagetools inspect ghcr.io/albatroxxx/terradune:1.0.0
-docker pull ghcr.io/albatroxxx/terradune:1.0.0
-go install github.com/albatroxxx/terradune@v1.0.0
+gh release view v1.0.1
+docker buildx imagetools inspect ghcr.io/albatroxxx/terradune:1.0.1
+docker pull ghcr.io/albatroxxx/terradune:1.0.1
+go install github.com/albatroxxx/terradune@v1.0.1
 terradune -version
 ```
 

@@ -12,7 +12,7 @@ Terradune turns initialized Terraform workspaces into a local plan review interf
 
 ![Terradune expanded Resource Map](docs/review/after-resource-map-expanded.png)
 
-**[Website](https://albatroxxx.github.io/terradune/) · [Installation guide](https://albatroxxx.github.io/terradune/docs/) · [v1.0.0 release](https://github.com/albatroxxx/terradune/releases/tag/v1.0.0)**
+**[Website](https://albatroxxx.github.io/terradune/) · [Installation guide](https://albatroxxx.github.io/terradune/docs/) · [Latest release](https://github.com/albatroxxx/terradune/releases/latest)**
 
 ## Start Reviewing
 
@@ -21,7 +21,9 @@ Terradune turns initialized Terraform workspaces into a local plan review interf
 The image includes Terraform and supports Linux AMD64 and ARM64. From your Terraform working directory, in a POSIX shell:
 
 ```sh
-IMAGE=ghcr.io/albatroxxx/terradune:1.0.0
+# :latest follows the newest release; pin a version such as :1.0.1 when you
+# need the same image back, or the digest from the release notes for immutability.
+IMAGE=ghcr.io/albatroxxx/terradune:latest
 docker run --rm --user "$(id -u):$(id -g)" \
   -v "$PWD:/workspace" --entrypoint terraform "$IMAGE" init -input=false
 docker run --rm --user "$(id -u):$(id -g)" \
@@ -34,11 +36,10 @@ Initialize inside the container even if the host is already initialized. Linux p
 
 ### Binary
 
-Native archive packaging targets Linux, macOS, and Windows on AMD64 and ARM64.
-The original v1.0.0 release has no binary archives; use Docker or Go until the
-[release assets](https://github.com/albatroxxx/terradune/releases/latest) include
-the archive, `checksums.txt`, and `checksums.txt.sigstore.json`.
-Once those assets are available, verify before extracting:
+Signed archives for Linux, macOS, and Windows on AMD64 and ARM64 are attached
+to every release from v1.0.1 onward, alongside `checksums.txt` and
+`checksums.txt.sigstore.json`. The commands below always fetch the newest
+release; verify before extracting:
 
 ```sh
 # Requires curl, jq, and cosign 3; run in an empty directory.
@@ -67,16 +68,18 @@ Requires Go 1.27.1+, a Terraform or OpenTofu CLI on your `PATH`, and an
 initialized workspace.
 
 ```sh
-go install github.com/albatroxxx/terradune@v1.0.0
+# @latest resolves the newest release; a tag such as @v1.0.1 pins one.
+go install github.com/albatroxxx/terradune@latest
 terraform -chdir=./infra init
 terradune ./infra
 ```
 
 Open the printed local URL, normally `http://localhost:8383`. Run `terraform init` in the workspace first. Provider credentials and inputs work the same way they do with Terraform, including AWS profiles, SSO, and environment variables.
 
-On current `main`, Terradune drives `terraform` when installed and falls back to
-`tofu`. This OpenTofu support is not in the original published v1.0.0; that release
-requires Terraform. The container image ships Terraform.
+Since v1.0.1, Terradune drives `terraform` when installed and falls back to
+`tofu`, so an OpenTofu-only machine needs no extra configuration. The workspace
+header names whichever produced the plan. The container image ships Terraform;
+v1.0.0 requires Terraform.
 
 ```sh
 # Scan initialized workspaces beneath a directory.
@@ -144,7 +147,7 @@ rm "$(command -v terradune)"
 ### Go
 
 ```sh
-# Update: installs over the previous build. A tag such as @v1.0.0 pins one.
+# Update: installs over the previous build. A tag such as @v1.0.1 pins one.
 go install github.com/albatroxxx/terradune@latest
 
 # Remove.
