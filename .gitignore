@@ -1,8 +1,6 @@
 # Terraform workspace artifacts (examples are real workspaces)
 **/.terraform/
-**/.terradune/
 /.cache/
-/dist/
 # Browser-only development dependencies and artifacts
 /e2e/node_modules/
 /e2e/test-results/
@@ -20,9 +18,7 @@ examples/modular/pets/note.txt
 
 # Build output
 /terradune
+/dist/
 
 # Stale lock files left when a plan is interrupted
 *.tfstate.lock.info
-
-# GoReleaser build output
-/dist/

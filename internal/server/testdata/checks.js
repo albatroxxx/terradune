@@ -247,7 +247,7 @@ check('ribbons stay hidden until something is hovered', function () {
       throw new Error('a ribbon is visible before anything is hovered');
     }
     if (!drawn[i].getAttribute('marker-end') && !drawn[i].getAttribute('stroke-dasharray')) {
-      throw new Error('connection has neither an arrow nor association dashes');
+      throw new Error('connection has no endpoint marker');
     }
     if (drawn[i].dataset.from && drawn[i].dataset.to) directed++;
   }
@@ -839,9 +839,32 @@ check('inventory includes unknown types, glue and identical addresses in differe
   if (new Set(rows.map(function (r) { return r.key; })).size !== 3) throw new Error('workspace identity collided');
   reviewWorkspace = 'dev'; changesOnly = true;
   if (sortedReviewRows(state).length !== 2) throw new Error('scope or changes filter wrong');
-  reviewService = 'Other AWS services';
+  reviewService = 'aws_future_service';
   if (sortedReviewRows(state).length !== 1) throw new Error('service filter wrong');
   reviewWorkspace = ''; reviewService = ''; changesOnly = false;
+});
+
+check('plan filters keep every exact resource type separate', function () {
+  var types = ['aws_instance', 'aws_vpc', 'aws_subnet', 'aws_security_group',
+    'aws_future_service', 'aws_another_future_service', 'awscc_ec2_instance', 'random_id'];
+  var state = {workspaces: [{name: 'types', nodes: types.map(function (type) {
+    return {id: type + '.main', type: type, status: 'create'};
+  })}]};
+  types.forEach(function (type) {
+    reviewService = type;
+    var rows = sortedReviewRows(state);
+    if (rows.length !== 1 || rows[0].node.type !== type) throw new Error('type filter merged ' + type);
+  });
+  reviewService = '';
+});
+
+check('map distinguishes direct dependencies from collapsed associations', function () {
+  var ws = STATE.workspaces.find(function (w) { return w.name === 'platform'; });
+  var links = buildMap(ws).links;
+  var direct = links.find(function (l) { return l.from === 'aws_vpc.main' && l.to === 'aws_subnet.public[0]'; });
+  var indirect = links.find(function (l) { return l.from === 'aws_subnet.public[0]' && l.to === 'aws_route_table.public'; });
+  if (!direct || direct.indirect) throw new Error('direct VPC dependency marked indirect');
+  if (!indirect || !indirect.indirect) throw new Error('collapsed route association marked direct');
 });
 
 check('focused relationships stay within the selected workspace and one hop', function () {

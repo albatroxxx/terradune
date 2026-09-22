@@ -1,16 +1,16 @@
 const ACTION_NAMES = {create: 'Create', update: 'Update', replace: 'Replace', destroy: 'Destroy', existing: 'Unchanged'};
 const ACTION_ORDER = {destroy: 0, replace: 1, update: 2, create: 3, existing: 4};
-const SERVICES = [
-  ['EC2 & VPC', /^(aws_(vpc|subnet|route|internet|nat_|egress|eip|security_group|network_|instance|ebs_|volume_|ec2_|launch_|autoscaling|vpn_|customer_gateway|default_)|awscc_ec2_)/, 'aws_vpc'],
-  ['Load balancing', /^aws_(lb|alb|elb)/, 'aws_lb'],
-  ['Containers', /^aws_(ecs_|eks_|ecr_)/, 'aws_instance'],
-  ['Compute & events', /^aws_(lambda_|batch_|sfn_|cloudwatch_event|scheduler_)/, 'aws_instance'],
-  ['Storage', /^aws_(s3_|efs_|fsx_|backup_|glacier_)/, 'aws_ebs_volume'],
-  ['Databases', /^aws_(db_|rds_|dynamodb_|elasticache_|memorydb_|redshift_|neptune_|docdb_)/, 'aws_db_instance'],
-  ['Identity & security', /^aws_(iam_|kms_|secretsmanager_|ssm_|acm_|waf|shield_|guardduty_|cognito_)/, 'aws_security_group'],
-  ['Delivery & DNS', /^aws_(cloudfront_|route53_|apigateway|api_gateway|globalaccelerator_)/, 'aws_internet_gateway'],
-  ['Messaging', /^aws_(sqs_|sns_|mq_|kinesis_|msk_)/, 'aws_route'],
-  ['Observability', /^aws_(cloudwatch_|cloudtrail_|xray_|config_)/, 'aws_route_table'],
+// Shared glyphs are visual fallbacks only; filters always use the exact type.
+const TYPE_ICONS = [
+  [/^(aws_(vpc|subnet|route|internet|nat_|egress|eip|security_group|network_|instance|ebs_|volume_|ec2_|launch_|autoscaling|vpn_|customer_gateway|default_)|awscc_ec2_)/, 'aws_vpc'],
+  [/^aws_(lb|alb|elb)/, 'aws_lb'],
+  [/^aws_(ecs_|eks_|ecr_|lambda_|batch_|sfn_|cloudwatch_event|scheduler_)/, 'aws_instance'],
+  [/^aws_(s3_|efs_|fsx_|backup_|glacier_)/, 'aws_ebs_volume'],
+  [/^aws_(db_|rds_|dynamodb_|elasticache_|memorydb_|redshift_|neptune_|docdb_)/, 'aws_db_instance'],
+  [/^aws_(iam_|kms_|secretsmanager_|ssm_|acm_|waf|shield_|guardduty_|cognito_)/, 'aws_security_group'],
+  [/^aws_(cloudfront_|route53_|apigateway|api_gateway|globalaccelerator_)/, 'aws_internet_gateway'],
+  [/^aws_(sqs_|sns_|mq_|kinesis_|msk_)/, 'aws_route'],
+  [/^aws_(cloudwatch_|cloudtrail_|xray_|config_)/, 'aws_route_table'],
 ];
 let reviewService = '', reviewWorkspace = '', changesOnly = false, reviewSort = 'action';
 let graphFocus = null;
@@ -48,10 +48,8 @@ function preserveFocus() {
     }
   };
 }
-function serviceOf(type) {
-  const known = SERVICES.find(s => s[1].test(type));
-  if (known) return {name: known[0], icon: known[2]};
-  return {name: /^(aws|awscc)_/.test(type) ? 'Other AWS services' : 'Other providers', icon: type};
+function resourceTypeOf(type) {
+  return {name: type, icon: TYPE_ICONS.find(([pattern]) => pattern.test(type))?.[1] || type};
 }
 
 function inventoryRows(state) {
@@ -60,7 +58,7 @@ function inventoryRows(state) {
     if (reviewWorkspace && ws.name !== reviewWorkspace) continue;
     for (const node of ws.nodes || []) {
       const key = resourceKey(ws.name, node.id);
-      rows.set(key, {key, ws, node, service: serviceOf(node.type)});
+      rows.set(key, {key, ws, node, service: resourceTypeOf(node.type)});
     }
   }
   return [...rows.values()];
@@ -84,7 +82,7 @@ function sortedReviewRows(state) {
 function scopedState(state) {
   return {...state, workspaces: (state.workspaces || []).filter(ws => !reviewWorkspace || ws.name === reviewWorkspace)
     .map(ws => ({...ws, nodes: (ws.nodes || []).filter(node =>
-      (!changesOnly || node.status !== 'existing') && (!reviewService || serviceOf(node.type).name === reviewService))}))};
+      (!changesOnly || node.status !== 'existing') && (!reviewService || node.type === reviewService))}))};
 }
 
 function renderReview(state) {
@@ -92,10 +90,11 @@ function renderReview(state) {
   const all = inventoryRows(state), rows = sortedReviewRows(state);
   const counts = new Map();
   for (const row of all) counts.set(row.service.name, (counts.get(row.service.name) || 0) + 1);
-  const services = [...counts].sort((a, b) => a[0].localeCompare(b[0]));
+  const services = [...counts].sort((a, b) =>
+    (LABELS[a[0]] || a[0]).localeCompare(LABELS[b[0]] || b[0]) || a[0].localeCompare(b[0]));
   $('service-nav').innerHTML = [['', all.length], ...services].map(([name, count]) =>
     `<button type="button" data-service="${esc(name)}" aria-pressed="${reviewService === name}">
-      <span>${esc(name || 'All services')}</span><b>${count}</b></button>`).join('');
+      <span>${esc(name ? LABELS[name] || name : 'All resource types')}${name && LABELS[name] ? `<small>${esc(name)}</small>` : ''}</span><b>${count}</b></button>`).join('');
   for (const button of $('service-nav').querySelectorAll('button')) {
     button.addEventListener('click', () => {
       reviewService = button.dataset.service;
@@ -111,7 +110,7 @@ function renderReview(state) {
     <td><button type="button" class="resource-open" data-resource="${esc(key)}">
       <span class="resource-icon">${iconSVG(GLYPH[n.type] ? n.type : service.icon)}</span><span class="resource-title">
       <strong>${esc(displayName(n))}</strong><span class="resource-address">${esc(n.id)}</span></span></button></td>
-    <td class="service-cell">${esc(service.name)}</td>
+    <td class="service-cell">${esc(LABELS[n.type] || n.type)}</td>
     <td><span class="action ${esc(n.status)}">${esc(ACTION_NAMES[n.status] || n.status)}</span></td>
     <td class="workspace-cell">${esc(ws.name)}<small>${esc(n.meta?.region || n.module || 'root module')}</small></td>
     <td><button type="button" class="relationship-open icon-button" data-resource="${esc(key)}"

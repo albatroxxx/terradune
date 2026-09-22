@@ -319,8 +319,8 @@
         <div><i class="legend-action destroy">&#8722;</i><span>Destroy</span></div>
         <div><i class="legend-action existing">=</i><span>Unchanged</span></div>
         <h3>Connections</h3>
-        <div><i class="legend-line flow"></i><span>Network path</span></div>
-        <div><i class="legend-line association"></i><span>Direct association</span></div>
+        <div><i class="legend-line direct"></i><span>Direct association</span></div>
+        <div><i class="legend-line indirect"></i><span>Indirect association</span></div>
         <div><i class="legend-selected"></i><span>Pinned resource</span></div>
       </div>
     </div>
@@ -328,13 +328,13 @@
   </div>
 </div>
 <section id="review" role="tabpanel" aria-labelledby="tab-review">
-  <aside class="service-rail" aria-label="AWS services"><h2>Services</h2><nav id="service-nav" aria-label="Filter by service"></nav></aside>
+  <aside class="service-rail" aria-label="Resource types"><h2>Resource types</h2><nav id="service-nav" aria-label="Filter by resource type"></nav></aside>
   <main class="review-main">
     <div class="review-heading"><div><h2>Plan review</h2><p id="review-count"></p></div>
       <label><span>Sort by</span><select id="review-sort" aria-label="Sort resources"><option value="action">Action priority</option><option value="address">Resource address</option></select></label></div>
     <div id="review-errors"></div>
     <table id="review-table" class="resource-table" aria-label="Terraform resources">
-      <thead><tr><th scope="col">Resource</th><th scope="col">Service</th><th scope="col">Action</th><th scope="col">Workspace</th><th scope="col"><span class="sr-only">Relationships</span></th></tr></thead>
+      <thead><tr><th scope="col">Resource</th><th scope="col">Resource type</th><th scope="col">Action</th><th scope="col">Workspace</th><th scope="col"><span class="sr-only">Relationships</span></th></tr></thead>
       <tbody id="review-body"></tbody>
     </table>
     <div id="review-empty" hidden><h3 id="review-empty-title">Waiting for a plan</h3></div>
@@ -370,7 +370,7 @@ const GRAPH_COLORS = { existing: '#4a8fd4', create: '#35a06b', update: '#d09826'
                        replace: '#d47f2e', destroy: '#d4534e' };
 const LABELS = {
   aws_vpc: 'VPC', aws_subnet: 'Subnet', aws_route_table: 'Route table',
-  aws_route: 'Route', aws_route_table_association: 'Association',
+  aws_route: 'Route', aws_route_table_association: 'Route table association',
   aws_internet_gateway: 'Internet gateway', aws_nat_gateway: 'NAT gateway',
   aws_egress_only_internet_gateway: 'Egress-only IGW', aws_vpn_gateway: 'VPN gateway',
   aws_vpc_peering_connection: 'Peering connection',
@@ -383,7 +383,8 @@ const LABELS = {
   aws_lb_listener_rule: 'Listener rule',
   aws_lb_target_group_attachment: 'Target attachment',
   aws_db_instance: 'RDS instance', aws_autoscaling_group: 'Auto Scaling group',
-  aws_launch_template: 'Launch template',
+  aws_launch_template: 'Launch template', aws_db_subnet_group: 'RDS subnet group',
+  aws_iam_role: 'IAM role',
 };
 const GATEWAYS = new Set(['aws_internet_gateway', 'aws_nat_gateway',
   'aws_egress_only_internet_gateway', 'aws_vpn_gateway',
@@ -519,7 +520,9 @@ function buildMap(ws) {
   // plain relationship between two resources, which does not.
   const links = [];
   const add = (from, to, flow, panel) => {
-    if (from && to && from !== to) links.push({ from, to, flow: !!flow, panel: panel || null });
+    // Collapsed routes and attachments connect cards without a direct edge.
+    if (from && to && from !== to) links.push({ from, to, flow: !!flow, panel: panel || null,
+      indirect: !(deps.get(from) || []).includes(to) && !(deps.get(to) || []).includes(from) });
   };
 
   for (const [id, n] of nodes) {
@@ -1082,8 +1085,6 @@ function renderMap(state) {
   restoreFocus();
 }
 
-const RIBBON_HOT = '#17654f', RIBBON_REL = '#496b96';
-
 // Prefer short orthogonal paths; longer associations can use clear card gutters.
 function ribbonRoute(A, B, obstacles) {
   const ports = r => [
@@ -1132,8 +1133,10 @@ function ribbonRoute(A, B, obstacles) {
 
 function drawRibbons(maps) {
   const svg = $('ribbons');
-  svg.innerHTML = `<defs><marker id="map-arrow" viewBox="0 0 10 10" refX="10" refY="5"
-    markerWidth="6" markerHeight="6" orient="auto"><polygon points="0,0 10,5 0,10" fill="${RIBBON_HOT}"/></marker></defs>`;
+  svg.innerHTML = `<defs>${['direct', 'indirect'].map(kind =>
+    `<marker id="map-${kind}" viewBox="0 0 12 12" refX="11" refY="6"
+      markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto">
+      <circle class="connection-dot ${kind}" cx="6" cy="6" r="4"/></marker>`).join('')}</defs>`;
   // Exclude the previous overlay size when measuring after a resize/filter.
   svg.setAttribute('width', '0');
   svg.setAttribute('height', '0');
@@ -1161,18 +1164,19 @@ function drawRibbons(maps) {
     return rectOf(el);
   };
   for (const m of maps) {
-    for (const { from, to, panel, flow } of m.links) {
+    for (const { from, to, panel, indirect } of m.links) {
       const A = box(from, panel, m.workspace), B = box(to, panel, m.workspace);
       if (!A || !B) continue;
       const p = document.createElementNS(svgNS, 'path');
       p.setAttribute('d', ribbonRoute(A, B, obstacles));
       p.setAttribute('fill', 'none');
-      p.setAttribute('stroke', flow ? RIBBON_HOT : RIBBON_REL);
+      const kind = indirect ? 'indirect' : 'direct';
+      p.setAttribute('class', `connection ${kind}`);
       p.setAttribute('stroke-width', '2');
       p.setAttribute('stroke-linecap', 'round');
       p.setAttribute('stroke-linejoin', 'round');
-      if (flow) p.setAttribute('marker-end', 'url(#map-arrow)');
-      else p.setAttribute('stroke-dasharray', '5 4');
+      p.setAttribute('marker-end', `url(#map-${kind})`);
+      if (indirect) p.setAttribute('stroke-dasharray', '5 4');
       // Nothing is drawn until a card is hovered: the map reads as columns of
       // resources, and the connections are the answer to pointing at one.
       p.setAttribute('opacity', '0');
