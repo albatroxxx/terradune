@@ -10,10 +10,10 @@ Use [GitHub private vulnerability reporting](https://github.com/albatroxxx/terra
 
 ## Trust Boundary
 
-- Terradune is a local, single-user tool with no authentication or TLS. Keep native binding and Docker-published ports on loopback. DNS rebinding checks and browser response headers are defense in depth, not authorization.
+- Terradune is a local, single-user tool with no authentication or TLS. Keep the server bound to loopback. DNS rebinding checks and browser response headers are defense in depth, not authorization.
 - Run only trusted Terraform projects. Planning can load provider executables, contact backends/cloud APIs, and execute external data sources. `-refresh=false` does not make planning offline. Terradune does not invoke apply.
 - Terraform sensitivity masks are applied to inventory metadata and detail values. Unmarked secrets, resource addresses, file paths, and Terraform/provider diagnostics are not automatically anonymized. Do not expose the API or share raw screenshots without inspection.
-- The container's root filesystem can be read-only, but the workspace must be writable. Mount credentials narrowly and read-only; prefer short-lived credentials. No Docker socket mount is needed.
+- Prefer short-lived provider credentials. The workspace must be writable for initialization and state locking.
 - Embedded UI assets avoid CDN requests. Terraform itself still makes network requests required by the configuration.
 
-CI runs static analysis, dependency vulnerability checks, and a HIGH/CRITICAL fixable-vulnerability image gate. A passing scan is a point-in-time signal, not a guarantee that no vulnerabilities exist. Weekly CI and dependency updates keep the checks active after release.
+CI runs static analysis and dependency vulnerability checks. A passing scan is a point-in-time signal, not a guarantee that no vulnerabilities exist. Weekly CI and dependency updates keep the checks active after release.

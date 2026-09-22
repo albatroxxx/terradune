@@ -1,26 +1,20 @@
 # V1 Follow-Through
 
-Implementation order requested by the owner; VERSION remains 1.0.0.
+Follow-through priorities for the v1 release series. Current version: 1.0.3.
 
 ## Release Record
 
 The original v1.0.0 was published on 2026-09-15 at source commit
 `f23b8f77cb23f5fed50223081da7387a388cd624`.
-Its public multi-platform Docker digest is
-`sha256:d66184d4de139873d3a78fe72cb2829c9797f13181f4594d5d6ad2283fd6ce5e`.
-
-The owner requested replacement after being informed that it is public.
-Replacement must not be represented as a new immutable Go module version:
-the public Go proxy/checksum database cannot be rewritten by this repository.
-Record source commits, image digests, archive checksums, and the distribution
-decision before any replacement. Never disable checksum verification to hide
-a version collision.
+Subsequent fixes were published as v1.0.1 and v1.0.2. Starting with v1.0.3,
+Go is the sole supported installation method. Published tags and Go module
+checksums remain immutable; future changes receive new versions.
 
 ## Ordered Work
 
 1. Release validation: run real Terraform/OpenTofu plans without cloud access
-   or apply; build, inspect, verify and execute native archives; test signing
-   and installation before publication.
+   or apply; verify Go installation across supported operating systems and
+   check the released module version after publication.
 2. Discovery: a reproducible synthetic demo, current launch copy, Search
    Console verification/sitemap submission, and owner-selected community posts.
    Mark account-dependent work separately from repository changes.

@@ -10,76 +10,72 @@ Terradune turns initialized Terraform workspaces into a local plan review interf
 [![Go Reference](https://pkg.go.dev/badge/github.com/albatroxxx/terradune.svg)](https://pkg.go.dev/github.com/albatroxxx/terradune)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-![Terradune expanded Resource Map](docs/review/after-resource-map-expanded.png)
+![Terradune Resource Map](site/assets/resource-map-v1.0.3.png)
 
 **[Website](https://albatroxxx.github.io/terradune/) · [Installation guide](https://albatroxxx.github.io/terradune/docs/) · [Latest release](https://github.com/albatroxxx/terradune/releases/latest)**
 
 ## Start Reviewing
 
-### Docker
+### Install Go
 
-The image includes Terraform and supports Linux AMD64 and ARM64. From your Terraform working directory, in a POSIX shell:
+Terradune requires **Go 1.27.1 or newer** and a separate
+[Terraform](https://developer.hashicorp.com/terraform/install) or
+[OpenTofu](https://opentofu.org/docs/intro/install/) CLI.
 
-```sh
-# :latest follows the newest release; pin a version such as :1.0.2 when you
-# need the same image back, or the digest from the release notes for immutability.
-IMAGE=ghcr.io/albatroxxx/terradune:latest
-docker run --rm --user "$(id -u):$(id -g)" \
-  -v "$PWD:/workspace" --entrypoint terraform "$IMAGE" init -input=false
-docker run --rm --user "$(id -u):$(id -g)" \
-  --cap-drop ALL --security-opt no-new-privileges \
-  --read-only --tmpfs /tmp:mode=1777 \
-  -p 127.0.0.1:8383:8383 -v "$PWD:/workspace" "$IMAGE"
-```
+1. Download Go for your operating system and architecture from [go.dev/dl](https://go.dev/dl/).
+2. On macOS, run the package installer. On Windows, run the MSI installer.
+   On Linux, follow the [official installation steps](https://go.dev/doc/install)
+   to install into a fresh `/usr/local/go` directory and add
+   `/usr/local/go/bin` to your PATH.
+3. Reopen your terminal and run `go version`. Check that it is at least 1.27.1.
 
-Initialize inside the container even if the host is already initialized. Linux providers live in `.terradune/`, separate from native `.terraform/`; add `.terradune/` to your workspace's `.gitignore`. The mount must be writable. Forward credentials to both commands when your backend or provider requires them. See the [Docker guide](docs/DOCKER.md) for AWS profiles, Compose, Windows, and troubleshooting.
-
-### Binary
-
-Signed archives for Linux, macOS, and Windows on AMD64 and ARM64 are attached
-to every release from v1.0.1 onward, alongside `checksums.txt` and
-`checksums.txt.sigstore.json`. The commands below always fetch the newest
-release; verify before extracting:
+### Install Terradune
 
 ```sh
-# Requires curl, jq, and cosign 3; run in an empty directory.
-set -e
-VERSION=$(curl -fsSL https://api.github.com/repos/albatroxxx/terradune/releases/latest |
-  jq -er '.tag_name | ltrimstr("v")')
-OS=darwin; ARCH=arm64
-BASE=https://github.com/albatroxxx/terradune/releases/download/v$VERSION
-curl -fsSLO "$BASE/terradune_${VERSION}_${OS}_${ARCH}.tar.gz"
-curl -fsSLO "$BASE/checksums.txt"
-curl -fsSLO "$BASE/checksums.txt.sigstore.json"
-cosign verify-blob checksums.txt --bundle checksums.txt.sigstore.json \
-  --certificate-identity-regexp '^https://github\.com/albatroxxx/terradune/\.github/workflows/release\.yml@refs/(heads/main|tags/v[0-9]+\.[0-9]+\.[0-9]+)$' \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com
-shasum -a 256 --ignore-missing -c checksums.txt
-tar xzf "terradune_${VERSION}_${OS}_${ARCH}.tar.gz" terradune
-```
-
-The Sigstore bundle contains the signature and verification evidence. Verification
-requires this repository's release workflow identity, not an arbitrary workflow
-or pull request. Windows archives use `.zip` instead of `.tar.gz`.
-
-### Go
-
-Requires Go 1.27.1+, a Terraform or OpenTofu CLI on your `PATH`, and an
-initialized workspace.
-
-```sh
-# @latest resolves the newest release; a tag such as @v1.0.2 pins one.
 go install github.com/albatroxxx/terradune@latest
+```
+
+Go is the sole supported installation method. Use `@v1.0.3` instead of
+`@latest` to pin this release.
+
+Add Go's executable directory to your PATH. On macOS/Linux, for the current
+terminal:
+
+```sh
+go_bin="$(go env GOBIN)"
+export PATH="${go_bin:-$(go env GOPATH)/bin}:$PATH"
+terradune -version
+```
+
+Add the same PATH setup to your shell profile, such as `~/.zshrc` or
+`~/.bashrc`, to keep it for new terminals. On Windows PowerShell:
+
+```powershell
+$goBin = go env GOBIN
+if (-not $goBin) { $goBin = Join-Path (go env GOPATH) "bin" }
+$env:Path = "$goBin;$env:Path"
+terradune -version
+```
+
+For future Windows terminals, add that directory to your user **Path** in
+Environment Variables. Go uses `GOBIN` when set, otherwise `GOPATH/bin`;
+see [Go's installation behavior](https://go.dev/doc/code#Command).
+
+### Review A Workspace
+
+```sh
 terraform -chdir=./infra init
 terradune ./infra
 ```
 
-Open the printed local URL, normally `http://localhost:8383`. Run `terraform init` in the workspace first. Provider credentials and inputs work the same way they do with Terraform, including AWS profiles, SSO, and environment variables.
+Replace `./infra` with your Terraform working directory. On an OpenTofu-only
+machine, initialize with `tofu -chdir=./infra init`. Terradune uses
+`terraform` when installed and falls back to `tofu`; the workspace header
+names the CLI that produced the plan.
 
-Since v1.0.1, Terradune drives `terraform` when installed and falls back to
-`tofu`, so an OpenTofu-only machine needs no extra configuration. The workspace
-header names whichever produced the plan. The container image ships Terraform;
-v1.0.0 requires Terraform.
+Open the printed local URL, normally `http://localhost:8383`. Provider
+credentials and inputs work as they do with your CLI, including AWS profiles,
+SSO, and environment variables.
 
 ```sh
 # Scan initialized workspaces beneath a directory.
@@ -92,70 +88,24 @@ terradune -var-file prod.tfvars -var region=eu-west-2 ./infra
 terradune -port 8484 ./infra
 ```
 
-Terradune never runs `terraform apply`. It runs `plan`, `show`, and `graph`; planning can contact providers and data sources. Refresh is off by default. Native execution binds to loopback. Docker listens inside the container and the commands above publish only to host loopback. There is no authentication or TLS; do not publish this port to the internet.
+Terradune never runs `terraform apply`. It runs `plan`, `show`, and
+`graph`; planning can contact providers and data sources. Refresh is off by
+default. The server binds to loopback. There is no authentication or TLS;
+keep it local.
 
 ## Update Or Remove
 
-Terradune keeps no configuration, cache, or state of its own. It creates one
-temporary directory per plan and deletes it again, so updating is replacing a
-binary or an image, and removing is deleting one. Nothing migrates between
-versions.
-
-Compare what you are running against what is current:
+Stop Terradune with Ctrl+C before updating, then run:
 
 ```sh
-terradune -version
-gh release view --repo albatroxxx/terradune --json tagName --jq .tagName
-```
-
-### Docker
-
-```sh
-# Update: latest follows the newest release; name a version to pin one.
-docker pull ghcr.io/albatroxxx/terradune:latest
-
-# Remove: list what you have, then drop what you no longer need.
-docker images ghcr.io/albatroxxx/terradune --format '{{.Repository}}:{{.Tag}}'
-docker rmi ghcr.io/albatroxxx/terradune:1.0.0
-```
-
-`1` and `1.0` follow the newest matching release and `latest` follows the newest
-of all, so pin the digest from the release notes whenever you need to get exactly
-the same image back later. With Compose, edit the `image:` line, then
-`docker compose pull && docker compose up`; `docker compose down` removes the
-container.
-
-The container initializes providers into `.terradune/` in each workspace, and
-that outlives the image. Delete it per workspace when you are done:
-
-```sh
-rm -rf .terradune
-```
-
-Leave `.terraform/` alone — that one belongs to your own Terraform CLI, not to
-Terradune. See the [Docker guide](docs/DOCKER.md#provider-data).
-
-### Binary
-
-Update by unpacking a newer archive over the old binary, verifying it the same
-way as the first install. Remove it by deleting it:
-
-```sh
-rm "$(command -v terradune)"
-```
-
-### Go
-
-```sh
-# Update: installs over the previous build. A tag such as @v1.0.2 pins one.
 go install github.com/albatroxxx/terradune@latest
-
-# Remove.
-rm "$(go env GOPATH)/bin/terradune"
+terradune -version
 ```
 
-`go clean -modcache` also clears the download cache, but it clears it for every
-module on the machine, which is rarely what you want for one tool.
+To remove it, delete `terradune` (or `terradune.exe` on Windows) from
+`go env GOBIN`, or from `GOPATH/bin` if GOBIN is empty. Leave your
+Terraform working directories and state files intact. Terradune keeps no
+persistent state of its own; temporary plan directories are cleaned up.
 
 ## Three Views, One Plan
 
@@ -163,13 +113,13 @@ module on the machine, which is rarely what you want for one tool.
 
 The default view groups VPCs, subnets, route tables, gateways, and load balancers by their infrastructure roles. Resources can appear in more than one contextual placement here; those placements do not duplicate the Plan inventory.
 
-Pin a resource to keep its path highlighted, or use its details button. Solid green arrows follow the network path; dashed blue lines indicate direct associations. Connections route around card headers and remain visible when columns stack. Pins and paths stay within their workspace. The legend groups resource actions and connection styles.
+Pin a resource to keep its path highlighted, or use its details button. Solid teal lines end in filled circles for direct dependencies; dashed blue lines end in hollow circles for indirect associations through collapsed routes or attachments. Connections route around card headers and remain visible when columns stack. Pins and paths stay within their workspace. The legend groups resource actions and connection styles.
 
 The **Expand view** control hides the header and filters to give the active map, plan, or graph more room. **Restore view** brings them back without clearing the current filters or pin. Escape closes details, then the legend, then a pinned path, then restores an expanded view.
 
 ### Plan
 
-The resource register lists each managed resource once per workspace, including route associations and unfamiliar resource types. Destructive changes sort first. Filter by action, service, workspace, or search; enable **Changes only** to hide unchanged resources.
+The resource register lists each managed resource once per workspace, including route associations and unfamiliar resource types. Destructive changes sort first. Filter by action, exact resource type, workspace, or search; enable **Changes only** to hide unchanged resources.
 
 Open a resource to inspect its configuration, attached resources, and dependencies. Updated and replaced resources show before/after values. Terraform's unknown values remain marked as known after apply. Sensitive detail values are masked using Terraform's sensitivity metadata, including nested objects and lists.
 
@@ -184,7 +134,7 @@ Zoom and fit controls are available above the graph. Graph nodes can be focused 
 | Area | Current behavior |
 | --- | --- |
 | Managed resource types | Generic Plan rows and configuration for every type emitted in resource changes; no AWS allowlist |
-| AWS services | Service groups and icons where recognized; unknown AWS and AWS Cloud Control types retain a generic fallback |
+| AWS services | Dedicated filters for each exact resource type; recognized types have friendly labels and icons, with generic fallbacks for unfamiliar types |
 | Resource instances | Full `count`, `for_each`, and module addresses retained |
 | Actions | Create, update, replace, destroy, unchanged |
 | Relationships | Configuration references, Terraform DOT dependencies, and matching resolved IDs/ARNs |
@@ -201,7 +151,7 @@ Terradune does not invent an instance-level relationship when a plan cannot iden
 | Flag | Default | Purpose |
 | --- | --- | --- |
 | `-port` | `8383` | Local HTTP port |
-| `-host` | `127.0.0.1` or `TERRADUNE_HOST` | Listen IP or localhost; Docker sets `0.0.0.0` internally |
+| `-host` | `127.0.0.1` or `TERRADUNE_HOST` | Listen IP or localhost |
 | `-var-file` | none | Terraform variable file; repeatable |
 | `-var` | none | Terraform `name=value` input; repeatable |
 | `-refresh` | `false` | Refresh state before planning |
@@ -260,7 +210,7 @@ CI also runs `gosec`, `staticcheck`, `govulncheck`, and Semgrep. Passing local u
 
 Plan files may contain sensitive data. Inventory metadata and details apply Terraform's sensitivity masks, including nested values. Unmarked secrets and provider diagnostics cannot be identified automatically. Keep Terradune on localhost and use synthetic plans when publishing screenshots. See [SECURITY.md](SECURITY.md).
 
-CI also builds and runs both container architectures through initialization, planning, API checks, and graceful shutdown, then scans the shipped image. A per-workspace scheduler serializes plans and coalesces edits; slow SSE consumers receive the latest snapshot. Release checks and publication gates are documented in the [release runbook](docs/RELEASING.md).
+CI verifies Go installation on Linux, macOS, and Windows, plus real Terraform and OpenTofu planning. A per-workspace scheduler serializes plans and coalesces edits; slow SSE consumers receive the latest snapshot. Release checks and publication gates are documented in the [release runbook](docs/RELEASING.md).
 
 ## Reporting A Bug
 
@@ -291,4 +241,4 @@ Start with the [makeover plan](docs/MAKEOVER.md) and [prioritized review finding
 
 ## License
 
-Terradune is Apache License 2.0. See [LICENSE](LICENSE). Bundled fonts and the layout engine have [their own notices](internal/server/assets/THIRD-PARTY.md). The container also includes Terraform under its upstream BUSL-1.1 license and third-party dependencies under their respective licenses. See [Docker packaging](docs/DOCKER.md#image-provenance).
+Terradune is Apache License 2.0. See [LICENSE](LICENSE). Bundled fonts and the layout engine have [their own notices](internal/server/assets/THIRD-PARTY.md).

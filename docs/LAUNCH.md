@@ -2,7 +2,7 @@
 
 ## Positioning
 
-Terradune is a local Terraform plan visualizer for infrastructure engineers reviewing AWS changes. Docker or Go installation, real resource relationships, and a single resource register are the core story. Do not claim complete AWS/Terraform lifecycle parity, cloud-account discovery, guaranteed savings, or an official AWS/HashiCorp affiliation.
+Terradune is a local Terraform plan visualizer for infrastructure engineers reviewing AWS changes. Go installation, real resource relationships, and a single resource register are the core story. Do not claim complete AWS/Terraform lifecycle parity, cloud-account discovery, guaranteed savings, or an official AWS/HashiCorp affiliation.
 
 ## Implemented SEO Foundation
 
@@ -11,7 +11,7 @@ Terradune is a local Terraform plan visualizer for infrastructure engineers revi
 - Locally hosted fonts and images, no analytics or tracking scripts, no JavaScript requirement for reading or navigation.
 - README/site cross-links and repository description, homepage, and relevant topics.
 
-Target useful queries naturally: "Terraform plan visualizer", "visualize Terraform AWS resources", "Terraform dependency graph", and "Terraform plan Docker UI". Write substantive examples and compatibility documentation instead of keyword-stuffed pages. A project-level `/terradune/robots.txt` would not control the host-root robots policy, so this project does not pretend otherwise.
+Target useful queries naturally: "Terraform plan visualizer", "visualize Terraform AWS resources", "Terraform dependency graph", and "Terraform plan visualization". Write substantive examples and compatibility documentation instead of keyword-stuffed pages. A project-level `/terradune/robots.txt` would not control the host-root robots policy, so this project does not pretend otherwise.
 
 ## Owner Launch Checklist
 
@@ -29,11 +29,11 @@ Guidance: [Google SEO starter guide](https://developers.google.com/search/docs/f
 
 ## Announcement Draft
 
-**Terradune v1.0.0: a local Terraform plan visualizer for AWS**
+**Terradune v1.0.3: a local Terraform plan visualizer for AWS**
 
 I built Terradune because a long `terraform plan` is hard to review spatially. It adds three views to an initialized workspace: Resource Map for AWS network context, Plan for a deduplicated resource register, and Graph for dependencies.
 
-The first stable version runs with Docker or Go. It stays local, never runs apply, and uses Terraform's sensitivity metadata in displayed values. Terraform still needs your normal providers, backend access, and credentials.
+Install it with Go. It stays local, never runs apply, and uses Terraform's sensitivity metadata in displayed values. Terraform still needs your normal providers, backend access, and credentials.
 
 Try it: https://albatroxxx.github.io/terradune/
 Source and feedback: https://github.com/albatroxxx/terradune
@@ -42,6 +42,6 @@ It is not complete Terraform lifecycle parity yet. Imports, moves, data-source i
 
 ## Short Social Draft
 
-Terradune v1.0.0 turns Terraform plans into an AWS Resource Map, a searchable resource register, and a dependency graph. Run it locally with Docker or Go. No hosted plan upload and no apply button. Installation, screenshots, and current limits: https://albatroxxx.github.io/terradune/
+Terradune v1.0.3 turns Terraform plans into an AWS Resource Map, a searchable resource register, and a dependency graph. Run it locally with Go. No hosted plan upload and no apply button. Installation, screenshots, and current limits: https://albatroxxx.github.io/terradune/
 
-These are drafts, not a record of posts. Publish only after the release, anonymous Docker pull, and live site are verified.
+These are drafts, not a record of posts. Publish only after the release, versioned Go installation, and live site are verified.

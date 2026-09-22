@@ -65,8 +65,8 @@ body:
     id: version
     attributes:
       label: Terradune version
-      description: Output of `terradune -version`, or the image tag and digest.
-      placeholder: terradune v1.0.0
+      description: Output of `terradune -version`.
+      placeholder: terradune v1.0.3
     validations:
       required: true
 
@@ -75,8 +75,6 @@ body:
     attributes:
       label: How it is installed
       options:
-        - Docker image
-        - Binary archive from a release
         - go install
         - Built from source
     validations:

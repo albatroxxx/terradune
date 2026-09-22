@@ -50,8 +50,35 @@ test('plan filters and resource details work with the keyboard', async ({ page }
   await expect(resource).toBeFocused();
   await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
   await expect(page.locator('#review-count')).toHaveText('35 of 35 resources');
-  await page.locator('#service-nav').getByRole('button', { name: /^Databases/ }).click();
+  await page.locator('#service-nav').getByRole('button', { name: /^RDS subnet group/ }).click();
   await expect(page.locator('#review-count')).toHaveText('1 of 35 resources');
+});
+
+test('plan resource types remain separate and map endpoints are circles', async ({ page }, testInfo) => {
+  await page.getByRole('tab', { name: 'Plan', exact: true }).click();
+  await page.locator('#service-nav [data-service="aws_instance"]').click();
+  await expect(page.locator('#review-count')).toHaveText('3 of 35 resources');
+  await expect(page.locator('.service-cell')).toHaveText(['EC2 instance', 'EC2 instance', 'EC2 instance']);
+  await page.locator('#service-nav [data-service="aws_vpc"]').click();
+  await expect(page.locator('#review-count')).toHaveText('1 of 35 resources');
+  await expect(page.locator('.service-cell')).toHaveText('VPC');
+  await page.locator('#service-nav [data-service=""]').click();
+  await page.screenshot({ path: testInfo.outputPath('plan-resource-types.png') });
+  await page.getByRole('tab', { name: 'Resource Map', exact: true }).click();
+  await page.getByRole('button', { name: 'Pin path: platform-public-us-east-1a, Subnet, existing', exact: true }).click();
+  const direct = page.locator('#ribbons path[data-from="aws_vpc.main"][data-to="aws_subnet.public[0]"]');
+  const indirect = page.locator('#ribbons path[data-from="aws_subnet.public[0]"][data-to="aws_route_table.public"]');
+  await expect(direct).toHaveAttribute('marker-end', 'url(#map-direct)');
+  await expect(indirect).toHaveAttribute('marker-end', 'url(#map-indirect)');
+  await expect(direct).toHaveCSS('stroke', 'rgb(22, 128, 120)');
+  await expect(indirect).toHaveCSS('stroke', 'rgb(83, 122, 176)');
+  await expect(direct).toHaveAttribute('opacity', '1');
+  await expect(indirect).toHaveAttribute('opacity', '1');
+  await expect(page.locator('#ribbons marker polygon')).toHaveCount(0);
+  await expect(page.locator('#map-direct circle')).toHaveCSS('fill', 'rgb(22, 128, 120)');
+  await expect(page.locator('#map-indirect circle')).toHaveCSS('fill', 'rgb(246, 248, 248)');
+  await page.getByRole('button', { name: 'Legend', exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath('map-circle-connections.png') });
 });
 
 test('legend and pinned map path unwind one layer per Escape', async ({ page }) => {

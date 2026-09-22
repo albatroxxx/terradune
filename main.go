@@ -68,7 +68,7 @@ func main() {
 	if hostDefault == "" {
 		hostDefault = "127.0.0.1"
 	}
-	host := flag.String("host", hostDefault, "listen IP; use 0.0.0.0 inside Docker with a loopback-only published port")
+	host := flag.String("host", hostDefault, "listen IP or localhost (keep local; no authentication)")
 	refresh := flag.Bool("refresh", false, "refresh state before planning (slower, needs live credentials)")
 	var varFiles, vars repeatable
 	flag.Var(&varFiles, "var-file", "variable file to pass to terraform (repeatable)")

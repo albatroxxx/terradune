@@ -15,7 +15,7 @@ It gives an initialized workspace three views:
 - Plan: a searchable resource register with create, update, replace and destroy states.
 - Graph: dependencies, either across the plan or focused on one resource.
 
-You can run it with Docker or Go. Terradune stays local, has no hosted
+You can run it with Go. Terradune stays local, has no hosted
 plan-upload service, and never runs terraform apply. Terraform still uses your
 normal providers, credentials and backend.
 
@@ -64,7 +64,7 @@ synthetic state and disabled refresh; no apply or real cloud account is needed.
 | 8-22s | Pin `platform-private-us-east-1a` | "The map shows the subnet in context, with its route table, NAT gateway and instances. Pin a path to follow the connections." |
 | 22-36s | Plan; search `aws_instance.api` | "The Plan register keeps each resource in one place. Search an address and review its action and configuration." |
 | 36-50s | Open that row's relationship button | "Graph focuses on the resource and its direct dependencies, so a larger plan is easier to inspect." |
-| 50-60s | Return to Resource Map | "Run it locally with Docker or Go. It never applies changes. Installation and current limitations are on the project website." |
+| 50-60s | Return to Resource Map | "Run it locally with Go. It never applies changes. Installation and current limitations are on the project website." |
 
 Record the actual screen transitions. Do not imply this unchanged synthetic
 example demonstrates a destructive plan or a live AWS account. If a recorded
@@ -73,7 +73,7 @@ demo has no audio, include this narration as captions or accompanying text.
 ## Publication Checks
 
 - Recheck installation links and the advertised release immediately before posting.
-- Do not advertise OpenTofu/native archives as published until the corresponding artifacts are verified.
+- Verify the current Go release and live installation guide before posting.
 - Add the alt text above to each image in LinkedIn.
 - Use one authentic post; do not send unsolicited promotional messages.
 - Save the eventual post URL here only after the owner publishes it.

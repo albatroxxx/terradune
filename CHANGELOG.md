@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.3
+
+- Plan filters use each exact resource type instead of combined service groups.
+- Resource Map uses teal filled-circle endpoints for direct dependencies and
+  dashed blue hollow-circle endpoints for indirect associations.
+- Go is the sole supported installation method; documentation includes Go
+  setup and PATH instructions for macOS, Linux, and Windows.
+- Release checks verify Go installation on three operating systems and validate
+  the source commit and tagged module during publication.
+
 ## 1.0.2
 
 ### Fixed
@@ -12,16 +22,8 @@
 
 ## 1.0.1
 
-The first release with native binary archives, and the release the
-latest-oriented installation instructions resolve to.
-
 ### Added
 
-- Signed binary archives for Linux, macOS, and Windows on AMD64 and ARM64,
-  attached to the release with `checksums.txt` and a keyless cosign Sigstore
-  bundle. CI builds all six archives on every pull request, verifies their
-  checksums and contents, executes the host-native binary on three operating
-  systems, and rehearses the signing round trip on trusted main.
 - OpenTofu is accepted when Terraform is not installed. Terraform still wins
   when both are present, and the interface names whichever produced the plan.
   Real Terraform 1.16.2 and OpenTofu 1.12.6 integration tests run on Linux,
@@ -48,10 +50,9 @@ First stable release of the documented local plan-review workflow.
 
 ### Added
 
-- Linux AMD64/ARM64 non-root Docker images with Terraform, Compose, liveness checks, separate provider data, SBOM, and provenance.
 - Resource Map, Plan, and Graph views with filters, detail inspection, routed relationships, and expanded view.
 - Terradune identity, GitHub Pages installation site, security policy, and release runbook.
-- Container integration tests, cross-platform race tests, and image vulnerability scanning.
+- Cross-platform race tests and security scanning.
 
 ### Fixed
 
@@ -63,4 +64,4 @@ First stable release of the documented local plan-review workflow.
 
 ### Compatibility
 
-Docker includes a patched-toolchain build of Terraform 1.16.2. Native installation requires Go 1.27.1+ and a separate Terraform CLI. Generic managed-resource rendering is not complete Terraform lifecycle parity. See [coverage](README.md#coverage).
+Go installation requires Go 1.27.1+ and a separate Terraform CLI. Generic managed-resource rendering is not complete Terraform lifecycle parity. See [coverage](README.md#coverage).

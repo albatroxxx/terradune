@@ -78,6 +78,15 @@ jobs:
           go-version-file: go.mod
           check-latest: true
       - run: go build ./...
+      - name: Verify Go installation
+        run: |
+          export GOBIN="$RUNNER_TEMP/terradune-install"
+          mkdir -p "$GOBIN"
+          go install .
+          executable="$GOBIN/terradune"
+          if [ "$RUNNER_OS" = Windows ]; then executable="$executable.exe"; fi
+          "$executable" -version
+          "$executable" -help
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
@@ -89,123 +98,6 @@ jobs:
             echo "These files need gofmt:"; echo "$unformatted"; exit 1
           fi
       - run: go test -race -count=1 ./...
-
-  docker:
-    name: Docker (${{ matrix.arch }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [amd64, arm64]
-    steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4
-      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
-      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
-        with:
-          context: .
-          load: true
-          platforms: linux/${{ matrix.arch }}
-          tags: terradune:test
-          build-args: VERSION=test
-          cache-from: type=gha,scope=${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
-      - run: bash scripts/docker-smoke.sh terradune:test
-        env:
-          DOCKER_DEFAULT_PLATFORM: linux/${{ matrix.arch }}
-      - run: docker compose config --quiet
-      - name: Scan shipped image
-        if: matrix.arch == 'amd64'
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: terradune:test
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: '1'
-          scanners: vuln
-
-  binaries:
-    name: Binary build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-          check-latest: true
-      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
-        with:
-          version: '~> v2'
-          install-only: true
-      # A broken release config or a cross-build that does not compile should
-      # fail here, not halfway through a release where the image is already
-      # published and the tag already exists.
-      - run: goreleaser check
-      - run: goreleaser release --snapshot --clean --skip=sign
-      - run: python3 scripts/check-archives.py
-      - uses: actions/upload-artifact@v4
-        with:
-          name: native-archives
-          path: |
-            dist/*.tar.gz
-            dist/*.zip
-            dist/checksums.txt
-          retention-days: 7
-
-  archive-install:
-    name: Archive install (${{ matrix.os }})
-    needs: binaries
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v4
-        with:
-          name: native-archives
-          path: dist
-      - run: python3 scripts/check-archives.py
-
-  signing:
-    name: Keyless signing round trip
-    needs: binaries
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: native-archives
-          path: dist
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-      - name: Sign and verify the packaged checksums
-        env:
-          # The certificate names the workflow that defines this job — this
-          # file — not the caller. github.workflow_ref names the caller, so it
-          # matched on standalone runs and broke the first time release.yml
-          # called this workflow. The real release signature is produced by
-          # release.yml itself and verifies against that identity; this
-          # rehearsal verifies its own.
-          IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/ci.yml@${{ github.ref }}
-        run: |
-          cosign sign-blob --yes --bundle=dist/checksums.txt.sigstore.json dist/checksums.txt
-          cosign verify-blob --bundle=dist/checksums.txt.sigstore.json \
-            --certificate-identity="$IDENTITY" \
-            --certificate-oidc-issuer=https://token.actions.githubusercontent.com dist/checksums.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: signing-proof
-          path: |
-            dist/checksums.txt
-            dist/checksums.txt.sigstore.json
-          retention-days: 7
 
   cli:
     name: CLI (${{ matrix.cli }}, ${{ matrix.os }})

@@ -2,25 +2,23 @@
 <html lang="en"><head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Terradune Releases</title>
-  <meta name="description" content="Terradune release notes: v1.0.2 fixes Resource Map subnet classification, v1.0.1 added signed binaries and OpenTofu, v1.0.0 introduced local plan review.">
+  <meta name="description" content="Terradune v1.0.3 adds dedicated resource-type filters, clearer map connections, and a single Go installation path. Read the release history.">
   <link rel="canonical" href="https://albatroxxx.github.io/terradune/releases/">
   <meta name="robots" content="index,follow"><meta property="og:type" content="website">
   <meta property="og:title" content="Terradune Releases"><meta property="og:description" content="Release notes for Terradune, the local Terraform plan review workspace.">
-  <meta property="og:url" content="https://albatroxxx.github.io/terradune/releases/"><meta property="og:image" content="https://albatroxxx.github.io/terradune/assets/resource-map-2026-09.jpg"><meta name="twitter:card" content="summary_large_image">
+  <meta property="og:url" content="https://albatroxxx.github.io/terradune/releases/"><meta property="og:image" content="https://albatroxxx.github.io/terradune/assets/resource-map-v1.0.3.png"><meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="../assets/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/site.css">
 </head><body>
   <a class="skip" href="#main">Skip to content</a>
-  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">Terradune</a><nav aria-label="Main"><a href="../docs/">Get started</a><a href="./" aria-current="page">v1.0.2</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
-  <main id="main" class="docs-layout"><nav class="docs-nav" aria-label="Release navigation"><a href="#v102">v1.0.2</a><a href="#v101">v1.0.1</a><a href="#v1">v1.0.0</a><a href="../docs/">Installation</a><a href="https://github.com/albatroxxx/terradune/releases">All releases</a></nav><article class="prose">
-    <p class="eyebrow">RELEASE NOTES</p><h1 id="v102">Terradune v1.0.2</h1><p class="release-date">Latest release</p><p>A patch release: subnets whose route table associations use <code>for_each</code> are classified correctly before apply, and a subnet the plan can say nothing about no longer claims to be private.</p>
-    <p><a class="button primary" href="../docs/">Install the latest</a> <a class="button" href="https://github.com/albatroxxx/terradune/releases/tag/v1.0.2">GitHub release</a></p>
-    <h2 id="v101">Terradune v1.0.1</h2><p class="release-date">Signed binaries and OpenTofu</p><p>The first release with signed native binary archives for Linux, macOS, and Windows. Terradune now drives OpenTofu when Terraform is not installed, live plan updates preserve keyboard focus, and every change is gated by browser and accessibility suites in Chromium, Firefox, and WebKit.</p>
-    <p><a class="button" href="https://github.com/albatroxxx/terradune/releases/tag/v1.0.1">v1.0.1 on GitHub</a></p>
-    <h2 id="v1">Terradune v1.0.0</h2><p class="release-date">First stable release</p><p>A local review workspace for Terraform plans, distributed through Docker and Go.</p>
-    <h2>Review infrastructure in context</h2><ul><li>Resource Map with directional paths, direct associations, workspace-isolated pins, and an expandable canvas.</li><li>A complete managed-resource Plan register with service, workspace, action, and search filters.</li><li>A dependency Graph with focused neighborhoods, routed arrows, zoom, fit, and keyboard controls.</li><li>A resource inspector with before/after values, unknown states, and sensitive-value masking.</li></ul>
-    <h2>Built for repeatable local use</h2><ul><li>Multi-platform Docker images for Linux AMD64 and ARM64, with Terraform included and a non-root default user.</li><li>Versioned Go installation with accurate <code>-version</code> output.</li><li>Coalesced rebuilds, bounded plan concurrency, latest-snapshot delivery, and signal-aware shutdown.</li><li>Pinned container bases, container smoke tests, vulnerability gates, SBOM, and build provenance.</li></ul>
+  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">Terradune</a><nav aria-label="Main"><a href="../docs/">Get started</a><a href="./" aria-current="page">v1.0.3</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
+  <main id="main" class="docs-layout"><nav class="docs-nav" aria-label="Release navigation"><a href="#v103">v1.0.3</a><a href="#v102">v1.0.2</a><a href="#v101">v1.0.1</a><a href="#v1">v1.0.0</a><a href="../docs/">Installation</a><a href="https://github.com/albatroxxx/terradune/releases">All releases</a></nav><article class="prose">
+    <p class="eyebrow">RELEASE NOTES</p><h1 id="v103">Terradune v1.0.3</h1><p class="release-date">Latest release</p>
+    <ul><li>Plan filters keep EC2 instances, VPCs, subnets, and every other resource type separate.</li><li>Resource Map connections use teal filled circles for direct dependencies and blue hollow circles for indirect associations.</li><li>Go is the sole supported installation method, with setup steps for macOS, Linux, and Windows.</li></ul>
+    <p><a class="button primary" href="../docs/#go">Install with Go</a> <a class="button" href="https://github.com/albatroxxx/terradune/releases/tag/v1.0.3">GitHub release</a></p>
+    <h2 id="v102">Terradune v1.0.2</h2><p>Correctly pairs <code>for_each</code> route-table associations with their subnets before apply. Subnets with no known association no longer claim to be private.</p>
+    <h2 id="v101">Terradune v1.0.1</h2><p>OpenTofu fallback, keyboard-focus preservation during live updates, and automated browser/accessibility coverage across Chromium, Firefox, and WebKit.</p>
+    <h2 id="v1">Terradune v1.0.0</h2><p>The first stable local plan-review workflow: Resource Map, Plan, Graph, sensitive-value masking, bounded planning, and graceful shutdown.</p>
     <p class="note">Stable v1 defines a supported review workflow, not complete Terraform lifecycle parity. Read the <a href="../docs/#compatibility">compatibility boundary</a> before adopting it.</p>
-    <p><a class="button" href="https://github.com/albatroxxx/terradune/releases/tag/v1.0.0">v1.0.0 on GitHub</a></p>
   </article></main>
   <footer class="site-footer"><span>Terradune by <a href="https://github.com/albatroxxx">albatroxxx</a></span><nav aria-label="Footer"><a href="../">Overview</a><a href="../docs/#security">Security</a></nav></footer>
 </body></html>

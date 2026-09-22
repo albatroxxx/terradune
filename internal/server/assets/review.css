@@ -1,5 +1,6 @@
 :root { --bg: #f6f8f8; --text: #192e2a; --muted: #5b6c69; --faint: #5c706a;
-  --line: #dce5e2; --line-soft: #e8eeec; --sunken: #f0f5f3; --accent: #17654f; }
+  --line: #dce5e2; --line-soft: #e8eeec; --sunken: #f0f5f3; --accent: #17654f;
+  --connection-direct: #168078; --connection-indirect: #537ab0; }
 body { letter-spacing: 0; }
 header { padding: 14px 24px; gap: 12px; }
 .brand { display: flex; align-items: center; gap: 10px; margin-right: 24px; }
@@ -33,7 +34,9 @@ header h1 { font-size: 21px; }
   border-radius: 5px; cursor: pointer; }
 #service-nav button[aria-pressed="true"] { color: #144938; background: #dcece3; font-weight: 700; }
 #service-nav button:hover { background: #e4ede8; }
-#service-nav b { font: 11px var(--mono); }
+#service-nav button > span { min-width: 0; overflow-wrap: anywhere; }
+#service-nav small { display: block; font: 10px/1.5 var(--mono); margin-top: 3px; }
+#service-nav b { font: 11px var(--mono); flex: none; }
 .review-main { flex: 1; min-width: 0; overflow: auto; padding: 22px 24px 40px; }
 .review-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
 .review-heading h2 { margin: 0; font-size: 22px; }
@@ -103,10 +106,17 @@ header h1 { font-size: 21px; }
 #legend .legend-action.replace { color: var(--replace-fg); background: var(--replace-bg); border-color: var(--replace-bd); }
 #legend .legend-action.destroy { color: var(--destroy-fg); background: var(--destroy-bg); border-color: var(--destroy-bd); }
 #legend .legend-action.existing { color: var(--existing-fg); background: var(--existing-bg); border-color: var(--existing-bd); }
-#legend .legend-line { height: 0; border: 0; border-top: 2px solid var(--accent); border-radius: 0; position: relative; }
-#legend .legend-line.flow::after { content: ''; position: absolute; right: -1px; top: -5px;
-  border-left: 7px solid var(--accent); border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
-#legend .legend-line.association { border-color: #496b96; border-top-style: dashed; }
+#ribbons .connection.direct { stroke: var(--connection-direct); }
+#ribbons .connection.indirect { stroke: var(--connection-indirect); }
+#ribbons .connection-dot { stroke-width: 2; }
+#ribbons .connection-dot.direct { fill: var(--connection-direct); stroke: var(--connection-direct); }
+#ribbons .connection-dot.indirect { fill: var(--bg); stroke: var(--connection-indirect); }
+#legend .legend-line { height: 0; border: 0; border-top: 2px solid currentColor; border-radius: 0;
+  position: relative; color: var(--connection-direct); }
+#legend .legend-line::after { content: ''; position: absolute; right: -1px; top: -5px;
+  width: 8px; height: 8px; border: 2px solid currentColor; border-radius: 50%; background: currentColor; }
+#legend .legend-line.indirect { color: var(--connection-indirect); border-top-style: dashed; }
+#legend .legend-line.indirect::after { background: var(--bg); }
 #legend .legend-selected { border: 2px solid var(--accent); background: var(--sunken); }
 .card.pinned { box-shadow: 0 0 0 2px var(--accent); }
 .card:has(.hi), .card:has(.pinned) { opacity: 1; }

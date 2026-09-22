@@ -5,4 +5,4 @@ contact_links:
     about: Report privately. Never open a public issue for a vulnerability.
   - name: Installation and usage documentation
     url: https://albatroxxx.github.io/terradune/docs/
-    about: Installation, Docker, credentials, and troubleshooting.
+    about: Go installation, credentials, and troubleshooting.
