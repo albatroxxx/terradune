@@ -24,7 +24,7 @@ function focusReference(element) {
   if (element.id) return () => document.getElementById(element.id);
   let selector;
   for (const [kind, attr] of [['.chip', 'data-status'], ['#service-nav button', 'data-service'],
-    ['.resource-open', 'data-resource'], ['.relationship-open', 'data-resource'], ['.connection-open', 'data-resource'], ['.graph-node', 'data-key']]) {
+    ['.resource-open', 'data-resource'], ['.relationship-open', 'data-resource'], ['.connection-open', 'data-resource'], ['.graph-node', 'data-key'], ['.inventory-subnet', 'data-inventory-key'], ['.subnet-more', 'data-subnet']]) {
     if (element.matches(kind)) {
       selector = `${kind}[${attr}="${CSS.escape(element.getAttribute(attr))}"]`;
       break;
@@ -33,7 +33,8 @@ function focusReference(element) {
   const card = element.closest('.card');
   if (card && (element.classList.contains('card-main') || element.classList.contains('card-detail'))) {
     const kind = element.classList.contains('card-main') ? 'card-main' : 'card-detail';
-    selector = `.card[data-ws="${CSS.escape(card.dataset.ws)}"][data-id="${CSS.escape(card.dataset.id)}"] > .${kind}`;
+    const placement = card.dataset.inventory ? '[data-inventory="true"]' : card.dataset.compact ? '[data-compact="true"]' : ':not([data-inventory]):not([data-compact])';
+    selector = `.card[data-ws="${CSS.escape(card.dataset.ws)}"][data-id="${CSS.escape(card.dataset.id)}"]${placement} .${kind}`;
   }
   if (!selector) return () => element.isConnected ? element : null;
   const index = [...document.querySelectorAll(selector)].indexOf(element);
@@ -75,7 +76,7 @@ function sortedReviewRows(state) {
       const action = (ACTION_ORDER[a.node.status] ?? 5) - (ACTION_ORDER[b.node.status] ?? 5);
       if (action) return action;
     }
-    return a.node.id.localeCompare(b.node.id) || a.ws.name.localeCompare(b.ws.name);
+    return naturalCompare(a.node.id, b.node.id) || naturalCompare(a.ws.name, b.ws.name);
   });
 }
 

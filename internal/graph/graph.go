@@ -319,6 +319,10 @@ var metaKeys = map[string]string{
 	"subnet_id":          "subnet_id",
 	"instance_type":      "spec",
 	"load_balancer_type": "spec",
+	"instance_class":     "instance_class",
+	"node_type":          "node_type",
+	"launch_type":        "launch_type",
+	"engine":             "engine",
 	// What a load balancer's parts are actually distinguished by: two
 	// listeners on one balancer differ only by port, and two rules only by
 	// priority and what they match.

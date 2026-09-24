@@ -293,6 +293,7 @@
   }
 </style>
 <link rel="stylesheet" href="/assets/review.css">
+<link rel="stylesheet" href="/assets/map-inventory.css">
 </head>
 <body>
 <header>
@@ -374,6 +375,7 @@
 
 <script src="/assets/elk.bundled.js"></script>
 <script src="/assets/review.js"></script>
+<script src="/assets/map-inventory.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const svgNS = 'http://www.w3.org/2000/svg';
@@ -398,6 +400,12 @@ const LABELS = {
   aws_db_instance: 'RDS instance', aws_autoscaling_group: 'Auto Scaling group',
   aws_launch_template: 'Launch template', aws_db_subnet_group: 'RDS subnet group',
   aws_iam_role: 'IAM role',
+  aws_ecs_service: 'ECS service', aws_ecs_task_definition: 'ECS task definition',
+  aws_eks_cluster: 'EKS cluster', aws_eks_node_group: 'EKS node group',
+  aws_eks_fargate_profile: 'Fargate profile', aws_lambda_function: 'Lambda function',
+  aws_rds_cluster: 'RDS cluster', aws_rds_cluster_instance: 'RDS cluster instance',
+  aws_elasticache_cluster: 'ElastiCache cluster', aws_elasticache_replication_group: 'ElastiCache replication group',
+  aws_elasticache_subnet_group: 'Cache subnet group', aws_efs_mount_target: 'EFS mount target',
 };
 const GATEWAYS = new Set(['aws_internet_gateway', 'aws_nat_gateway',
   'aws_egress_only_internet_gateway', 'aws_vpn_gateway',
@@ -630,7 +638,10 @@ function buildMap(ws) {
   // something that does, which is how a Lambda with a vpc_config gets there
   // via its subnets. Assuming the only VPC in the workspace would put IAM
   // roles and SSM parameters inside a network they have nothing to do with.
+  const subnetsByResource = new Map([...nodes.keys()].map(id => [id, resourceSubnets(id, nodes, deps)]));
   const vpcOf = id => {
+    const subnetVpcs = new Set((subnetsByResource.get(id) || []).flatMap(s => depsOfType(s, n => n.type === 'aws_vpc')));
+    if (subnetVpcs.size) return subnetVpcs.size === 1 ? [...subnetVpcs][0] : null;
     const direct = depsOfType(id, m => m.type === 'aws_vpc');
     if (direct.length) return direct[0];
     for (const d of deps.get(id) || []) {
@@ -679,14 +690,13 @@ function buildMap(ws) {
     else if (isRouteTable(n)) p.routeTables.push(n);
     else if (GATEWAYS.has(n.type)) p.gateways.push(n);
     else {
-      // Something living in exactly one subnet is nested inside it; anything
-      // spanning several (a load balancer, say) sits beside the columns.
-      const subs = depsOfType(n.id, m => m.type === 'aws_subnet');
-      if (subs.length === 1) {
-        if (!p.contents.has(subs[0])) p.contents.set(subs[0], []);
-        p.contents.get(subs[0]).push(n);
-        add(subs[0], n.id);
-      } else p.inVpc.push(n);
+      const subs = subnetsByResource.get(n.id) || [];
+      for (const subnet of subs) {
+        if (!p.contents.has(subnet)) p.contents.set(subnet, []);
+        p.contents.get(subnet).push(n);
+        add(subnet, n.id);
+      }
+      if (subs.length !== 1 || n.type === 'aws_lb') p.inVpc.push(n);
     }
   }
   // A NAT gateway lives in a subnet. That is a relationship rather than a hop
@@ -724,7 +734,7 @@ function buildMap(ws) {
   // route tables on that transit gateway. Membership spreads outwards along
   // real connections, so this pulls in what is wired to the VPC and leaves an
   // unattached address where it actually is — in the region.
-  const bySort = (a, b) => a.id.localeCompare(b.id);
+  const bySort = compareMapResources;
   const placed = new Map();
   for (const p of panels) {
     for (const n of [...p.subnets, ...p.routeTables, ...p.gateways, ...p.inVpc,
@@ -825,6 +835,13 @@ function buildMap(ws) {
   for (const p of panels) {
     p.subnets.sort(bySort); p.routeTables.sort(bySort);
     p.gateways.sort(bySort); p.inVpc.sort(bySort);
+    for (const list of p.contents.values()) list.sort(bySort);
+    const inventory = new Map([...p.inVpc, ...[...p.contents.values()].flat()].map(n => [n.id, n]));
+    for (const stack of p.lbs) {
+      for (const n of [stack.lb, ...stack.listeners, ...stack.rules, ...stack.groups]) inventory.set(n.id, n);
+      for (const n of stack.targets) if (vpcOf(n.id) === p.vpc.id) inventory.set(n.id, n);
+    }
+    p.inventory = [...inventory.values()].sort(bySort);
   }
   others.sort(bySort);
   for (const list of Object.values(scopes)) list.sort(bySort);
@@ -846,7 +863,7 @@ function buildMap(ws) {
   }
   const unique = [...byPair.values()];
   const region = [...nodes.values()].find(n => n.meta?.region)?.meta.region || '';
-  return { workspace: ws.name, panels, others, scopes, region, links: unique, nodes, deps, attachedChanges, subnetPublic };
+  return { workspace: ws.name, panels, others, scopes, region, links: unique, nodes, deps, attachedChanges, subnetPublic, subnetsByResource };
 }
 
 // ---------- render map --------------------------------------------------
@@ -1057,14 +1074,15 @@ function panelHTML(p, m, vis) {
     <div class="az"><h4>${esc(az)}</h4>
       ${subs.map(s => {
         const inside = keep(p.contents.get(s.id) || []);
-        const nested = inside.length
-          ? `<div class="contents">${inside.map(c => cardHTML(c)).join('')}</div>` : '';
+        const nested = inside.length ? `<div class="contents"><span class="subnet-count">${inside.length} resource${inside.length === 1 ? '' : 's'}</span>
+          ${subnetPreviewResources(inside, m.workspace).map(compactResourceHTML).join('')}
+          ${inside.length > SUBNET_PREVIEW_LIMIT ? `<button type="button" class="subnet-more" data-inventory-key="${esc(resourceKey(m.workspace, p.vpc.id))}" data-subnet="${esc(s.id)}">View all ${inside.length} resources</button>` : ''}</div>` : '';
         // Public and private are answers; a subnet with no known route table
         // association is a question, and labelling it private would state an
         // answer the plan never gave.
-        return cardHTML(s, [m.subnetPublic.has(s.id)
+        return `<div class="subnet-group">` + cardHTML(s, [m.subnetPublic.has(s.id)
                               ? (m.subnetPublic.get(s.id) ? 'public' : 'private') : null,
-                            s.meta?.cidr].filter(Boolean).join(' · '), nested);
+                            s.meta?.cidr].filter(Boolean).join(' · ')) + nested + '</div>';
       }).join('')}
     </div>`).join('') || '<div class="empty">none</div>';
 
@@ -1089,11 +1107,8 @@ function panelHTML(p, m, vis) {
       ${col('Route tables', routeTables)}
       ${col('Network connections', gateways)}
     </div>
-  </div>` + (p.lbs || []).map(stack => lbPanelHTML(stack, m, vis)).join('')
-    + (inVpc.length ? `<div class="others">
-      <h3>In this VPC <span>(${inVpc.length})</span></h3>
-      ${groupedHTML(inVpc)}
-    </div>` : '');
+    ${vpcInventoryHTML(p, m, vis)}
+  </div>` + (p.lbs || []).map(stack => lbPanelHTML(stack, m, vis)).join('');
 }
 
 // summaryHTML gives each workspace a plan-style tally, so the interesting
@@ -1116,6 +1131,10 @@ function renderMap(state) {
   const restoreFocus = preserveFocus();
   const body = $('mapbody');
   const openConnections = new Set([...body.querySelectorAll('.connection-changes[open]')].map(el => el.dataset.workspace));
+  const inventoryScroll = new Map([...body.querySelectorAll('.vpc-inventory')].map(el => {
+    const scroll = el.querySelector('.inventory-scroll');
+    return [el.dataset.inventoryKey, [scroll.scrollLeft, scroll.scrollTop]];
+  }));
   const maps = [];
   let shown = 0, changedShown = 0, total = 0;
 
@@ -1174,6 +1193,13 @@ function renderMap(state) {
   }).join('');
 
   RENDER_ATTACHED = new Map();
+  for (const section of body.querySelectorAll('.vpc-inventory')) {
+    const position = inventoryScroll.get(section.dataset.inventoryKey);
+    if (position) {
+      const scroll = section.querySelector('.inventory-scroll');
+      [scroll.scrollLeft, scroll.scrollTop] = position;
+    }
+  }
   $('shown').textContent = changesOnly ? `${changedShown} changes · ${shown - changedShown} context` :
     filterActive() || reviewService ? `${shown} of ${total} shown` : `${total} resources`;
   for (const button of body.querySelectorAll('.connection-open')) {
@@ -1184,6 +1210,7 @@ function renderMap(state) {
   }
   drawRibbons(maps);
   wireHover(maps);
+  wireMapInventory();
   restoreFocus();
 }
 
@@ -1251,7 +1278,8 @@ function drawRibbons(maps) {
     return { x: r.left - base.left + scroll.scrollLeft,
              y: r.top - base.top + scroll.scrollTop, w: r.width, h: r.height };
   };
-  const obstacles = [...scroll.querySelectorAll('.card')].map(rectOf);
+  const topologyCards = [...scroll.querySelectorAll('.card')].filter(el => !el.dataset.inventory);
+  const obstacles = topologyCards.map(rectOf);
   // An instance appears both in the subnet holding it and in the targets of
   // the load balancer reaching it. A link belonging to one panel has to find
   // the copy in that panel, or every line would run to whichever was drawn
@@ -1261,7 +1289,7 @@ function drawRibbons(maps) {
     const within = panel
       ? scroll.querySelector(`[data-panel="${CSS.escape(panel)}"] ${selector}`)
       : null;
-    const el = within || scroll.querySelector(selector);
+    const el = within || topologyCards.find(c => c.dataset.ws === workspace && c.dataset.id === id);
     if (!el) return null;
     return rectOf(el);
   };
@@ -1425,6 +1453,7 @@ function wireHover(maps) {
       ev.stopPropagation(); // a nested card locks itself, not its subnet
       if (ev.detail > 1) return; // the second half of a double click
       setPinned(pinnedId === id && pinnedWorkspace === workspace ? null : id, workspace);
+      if (card.dataset.inventory && latest) renderMap(latest);
     });
     card.addEventListener('dblclick', ev => {
       ev.stopPropagation();

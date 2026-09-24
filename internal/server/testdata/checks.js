@@ -332,10 +332,9 @@ check('resources beside the columns are grouped by type', function () {
   if (h.indexOf('class="cat"') === -1) throw new Error('no category groups rendered');
   var headings = {}, re = /<span>([^<]*)<\/span>\s*<em>(\d+)<\/em><\/h4>/g, m;
   while ((m = re.exec(h)) !== null) headings[m[1]] = Number(m[2]);
-  // Instances sit inside their subnet and load balancers have a map of their
-  // own, so what stands beside the columns here is the storage and the
-  // security groups.
-  ['EBS volume', 'Security group'].forEach(function (want) {
+  // Outside-VPC resources retain exact-type groups; VPC members now use a
+  // full-width inventory grouped by purpose, while keeping their exact types.
+  ['EBS volume'].forEach(function (want) {
     if (!headings[want]) throw new Error('no category for ' + want +
       '; got ' + Object.keys(headings).join(', '));
   });
@@ -343,6 +342,9 @@ check('resources beside the columns are grouped by type', function () {
     throw new Error('load balancer listed beside the columns, not drawn as its own map');
   }
   if (headings['EBS volume'] !== 2) throw new Error('wrong count for EBS volume');
+  if (!h.includes('Resources in this VPC') || !h.includes('Security <span>') || !h.includes('<td>Security group</td>')) {
+    throw new Error('VPC security inventory missing');
+  }
   if (!/<h4>\s*<svg/.test(h)) throw new Error('category heading has no icon');
 });
 
@@ -1177,6 +1179,54 @@ checkConnectionChanges('attached detail rows include diffs and deleted values', 
   if (!removed.includes('::/0') || !removed.includes('igw-old')) throw new Error('deleted route details empty');
   var unknown = attrRows({route: [{gateway_id: null}]}, {route: [{gateway_id: 'igw-old'}]}, ['route']);
   if (!unknown.includes('known after apply') || !unknown.includes('igw-old')) throw new Error('nested unknown change hidden');
+});
+
+checkConnectionChanges('dense subnets have bounded compact references and a complete natural-order inventory', function () {
+  var ws = DENSE_STATE.workspaces[0], m = buildMap(ws), p = m.panels[0];
+  if (p.inventory.filter(n => n.type === 'aws_instance').length !== 30) throw new Error('instances missing from inventory');
+  var names = p.contents.get('aws_subnet.servers').map(displayName);
+  if (names[1] !== 'server-02' || names[29] !== 'server-30') throw new Error('not naturally sorted');
+  renderMap(DENSE_STATE);
+  var h = __sinks.mapbody;
+  if ((h.match(/data-compact="true"/g) || []).length !== 5) throw new Error('subnet preview is not bounded');
+  if ((h.match(/data-inventory="true"/g) || []).length !== 31) throw new Error('inventory lost or duplicated resources');
+  if (!h.includes('View all 30 resources')) throw new Error('missing expansion action');
+  changesOnly = true;
+  renderMap(DENSE_STATE);
+  if (( __sinks.mapbody.match(/data-inventory="true"/g) || []).length !== 30) throw new Error('changes filter includes unchanged inventory');
+});
+
+checkConnectionChanges('mixed VPC inventory follows placement groups without duplicating shared resources', function () {
+  var ws = MIXED_STATE.workspaces[0], m = buildMap(ws);
+  var p = m.panels.find(p => p.vpc.id === 'aws_vpc.main');
+  for (var id of ['aws_db_instance.orders', 'aws_rds_cluster_instance.analytics', 'aws_ecs_service.api', 'aws_eks_fargate_profile.workers', 'aws_elasticache_cluster.cache']) {
+    if ((m.subnetsByResource.get(id) || []).length !== 2) throw new Error('lost subnet-group placement: ' + id);
+    if (p.inventory.filter(n => n.id === id).length !== 1) throw new Error('missing or duplicate inventory entry: ' + id);
+  }
+  if (p.inventory.some(n => /outside|aws_instance.other/.test(n.id))) throw new Error('unrelated resource placed in VPC');
+  renderMap(MIXED_STATE);
+  var h = __sinks.mapbody;
+  for (var label of ['Compute &amp; containers', 'Databases &amp; caches', 'Storage', 'FARGATE', 'db.t4g.small']) {
+    if (!h.includes(label)) throw new Error('missing inventory type or size: ' + label);
+  }
+  var key = resourceKey(ws.name, p.vpc.id);
+  mapSubnetFilters.set(key, 'aws_subnet.secondary');
+  try {
+    var filtered = vpcInventoryHTML(p, m, new Set(ws.nodes.map(n => n.id)));
+    if (filtered.includes('data-id="aws_instance.app"')) throw new Error('subnet filter leaked resource');
+    if (!filtered.includes('data-id="aws_db_instance.orders"')) throw new Error('shared database lost from subnet filter');
+  } finally { mapSubnetFilters.delete(key); }
+});
+
+checkConnectionChanges('subnet placement cannot follow unrelated resources or cycles', function () {
+  var nodes = new Map([
+    ['app', {type:'aws_ecs_service'}], ['db', {type:'aws_db_instance'}],
+    ['a', {type:'aws_db_subnet_group'}], ['b', {type:'aws_db_subnet_group'}],
+    ['subnet', {type:'aws_subnet'}],
+  ]);
+  var deps = new Map([['app',['db']], ['db',['a']], ['a',['b']], ['b',['a','subnet']]]);
+  if (resourceSubnets('app', nodes, deps).length) throw new Error('app inherited database placement');
+  if (resourceSubnets('db', nodes, deps).join() !== 'subnet') throw new Error('cyclic subnet group lost placement');
 });
 
 checkDetailRequests().then(function () {
