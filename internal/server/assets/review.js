@@ -24,7 +24,7 @@ function focusReference(element) {
   if (element.id) return () => document.getElementById(element.id);
   let selector;
   for (const [kind, attr] of [['.chip', 'data-status'], ['#service-nav button', 'data-service'],
-    ['.resource-open', 'data-resource'], ['.relationship-open', 'data-resource'], ['.graph-node', 'data-key']]) {
+    ['.resource-open', 'data-resource'], ['.relationship-open', 'data-resource'], ['.connection-open', 'data-resource'], ['.graph-node', 'data-key']]) {
     if (element.matches(kind)) {
       selector = `${kind}[${attr}="${CSS.escape(element.getAttribute(attr))}"]`;
       break;

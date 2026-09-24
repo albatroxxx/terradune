@@ -2,6 +2,7 @@ package graph
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -31,5 +32,17 @@ func TestDetailsMaskNestedSensitiveValues(t *testing.T) {
 	}
 	if values["password"] != "secret-password" {
 		t.Fatal("sanitization mutated the plan used for dependency resolution")
+	}
+}
+
+func TestUnknownKeysIncludesRepeatedRouteAndRuleBlocks(t *testing.T) {
+	mask := map[string]interface{}{
+		"route":   []interface{}{map[string]interface{}{"gateway_id": true}},
+		"ingress": []interface{}{map[string]interface{}{"security_groups": []interface{}{false, true}}},
+		"nested":  map[string]interface{}{"value": true},
+		"known":   []interface{}{map[string]interface{}{"value": false}},
+	}
+	if got := unknownKeys(mask); !reflect.DeepEqual(got, []string{"ingress", "nested", "route"}) {
+		t.Fatalf("unknown keys = %v", got)
 	}
 }

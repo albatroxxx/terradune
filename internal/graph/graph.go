@@ -153,6 +153,7 @@ var vpcScoped = map[string]bool{
 	"aws_route_table_association": true, "aws_main_route_table_association": true,
 	"aws_internet_gateway": true, "aws_egress_only_internet_gateway": true,
 	"aws_nat_gateway": true, "aws_security_group": true, "aws_security_group_rule": true,
+	"aws_vpc_security_group_ingress_rule": true, "aws_vpc_security_group_egress_rule": true,
 	"aws_network_acl": true, "aws_network_acl_rule": true, "aws_network_interface": true,
 	"aws_network_interface_attachment": true, "aws_network_interface_sg_attachment": true,
 	"aws_vpc_endpoint": true, "aws_vpc_peering_connection": true, "aws_vpn_gateway": true,
@@ -263,11 +264,20 @@ func routeMeta(rc *tfjson.ResourceChange, meta map[string]string) map[string]str
 	if rc.Type != "aws_route" || rc.Change == nil {
 		return meta
 	}
-	after, _ := rc.Change.After.(map[string]interface{})
+	attrs := changeAttrs(rc)
 	unknown, _ := rc.Change.AfterUnknown.(map[string]interface{})
+	for _, attr := range []string{"destination_cidr_block", "destination_ipv6_cidr_block", "destination_prefix_list_id"} {
+		if dst, ok := attrs[attr].(string); ok && dst != "" {
+			if meta == nil {
+				meta = map[string]string{}
+			}
+			meta["destination"] = dst
+			break
+		}
+	}
 	for _, attr := range routeTargetAttrs {
 		used := false
-		if v, ok := after[attr]; ok && v != nil && v != "" {
+		if v, ok := attrs[attr]; ok && v != nil && v != "" {
 			used = true
 		}
 		if b, ok := unknown[attr].(bool); ok && b {
@@ -280,9 +290,6 @@ func routeMeta(rc *tfjson.ResourceChange, meta map[string]string) map[string]str
 			meta = map[string]string{}
 		}
 		meta["route_target"] = attr
-		if dst, ok := after["destination_cidr_block"].(string); ok && dst != "" {
-			meta["destination"] = dst
-		}
 		break
 	}
 	return meta

@@ -63,3 +63,28 @@ func TestPlannedSensitiveStateReplacesPriorMetadata(t *testing.T) {
 		t.Fatalf("malformed mask must fail closed: %v", values)
 	}
 }
+
+func TestRouteMetadataKeepsDeletedAndNonIPv4Destinations(t *testing.T) {
+	for _, attr := range []string{"destination_cidr_block", "destination_ipv6_cidr_block", "destination_prefix_list_id"} {
+		for _, deleted := range []bool{false, true} {
+			values := map[string]interface{}{attr: "synthetic-destination", "gateway_id": "igw-synthetic"}
+			change := &tfjson.Change{After: values}
+			if deleted {
+				change.Before, change.After = values, nil
+			}
+			rc := &tfjson.ResourceChange{Type: "aws_route", Change: change}
+			got := displayMeta(rc, nil)
+			if got["destination"] != "synthetic-destination" || got["route_target"] != "gateway_id" {
+				t.Fatalf("%s deleted=%v: metadata = %v", attr, deleted, got)
+			}
+			if deleted {
+				change.BeforeSensitive = map[string]interface{}{attr: true, "gateway_id": true}
+			} else {
+				change.AfterSensitive = map[string]interface{}{attr: true, "gateway_id": true}
+			}
+			if safe := displayMeta(rc, nil); safe["destination"] != "" || safe["route_target"] != "" {
+				t.Fatalf("masked route metadata leaked: %v", safe)
+			}
+		}
+	}
+}

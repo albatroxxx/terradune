@@ -55,29 +55,24 @@ func inlineScript(page []byte) []byte {
 
 // stateFromFixtures builds the same payload the browser receives, from the
 // plan fixtures the graph tests already use.
-func stateFromFixtures(t *testing.T) []byte {
+func stateFromFixtures(t *testing.T, names ...string) []byte {
 	t.Helper()
 	state := State{Root: "/examples"}
-	for _, f := range []struct{ name, path string }{
-		{"ec2", "ec2_plan.json"},
-		{"estate", "estate_plan.json"},
-		{"foreach", "foreach_plan.json"},
-		{"layered", "layered_plan.json"},
-		{"modular", "modular_plan.json"},
-		{"platform", "platform_plan.json"},
-		{"vpc", "vpc_plan.json"},
-	} {
-		raw, err := os.ReadFile(filepath.Join("..", "graph", "testdata", f.path))
+	if len(names) == 0 {
+		names = []string{"ec2", "estate", "foreach", "layered", "modular", "platform", "vpc"}
+	}
+	for _, name := range names {
+		raw, err := os.ReadFile(filepath.Join("..", "graph", "testdata", name+"_plan.json"))
 		if err != nil {
-			t.Fatalf("reading fixture %s: %v", f.path, err)
+			t.Fatalf("reading fixture %s: %v", name, err)
 		}
 		var plan tfjson.Plan
 		if err := json.Unmarshal(raw, &plan); err != nil {
-			t.Fatalf("parsing fixture %s: %v", f.path, err)
+			t.Fatalf("parsing fixture %s: %v", name, err)
 		}
 		g := graph.Build(&plan)
 		state.Workspaces = append(state.Workspaces, Workspace{
-			Name: f.name, Dir: "/examples/" + f.name,
+			Name: name, Dir: "/examples/" + name,
 			TerraformVersion: plan.TerraformVersion,
 			Nodes:            g.Nodes, Edges: g.Edges,
 		})
@@ -133,6 +128,9 @@ func runPageChecks(t *testing.T, jsc string) {
 	b.Write(stub)
 	b.WriteString("\nvar STATE = ")
 	b.Write(stateFromFixtures(t))
+	b.WriteString(";\n")
+	b.WriteString("var CONNECTION_STATE = ")
+	b.Write(stateFromFixtures(t, "connection_changes"))
 	b.WriteString(";\n")
 	review, err := static.ReadFile("assets/review.js")
 	if err != nil {

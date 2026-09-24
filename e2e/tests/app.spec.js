@@ -196,3 +196,56 @@ for (const width of [320, 390]) {
     }
   });
 }
+
+test('route and attachment changes retain map context and inspectable diffs', async ({ page, request }, testInfo) => {
+  try {
+    await request.post('/__test/connection-changes');
+    await expect(page.locator('#meta')).toContainText('20 resources');
+    const table = page.locator('.card[data-id="aws_route_table.main"]');
+    await expect(table).toContainText('5 attached changes');
+    await expect(table).toHaveClass('card existing');
+    await page.getByRole('checkbox', { name: 'Changes only' }).check();
+    await expect(page.locator('#shown')).toHaveText('9 changes · 11 context');
+    await expect(table).toBeVisible();
+    await page.getByRole('button', { name: 'Expand view', exact: true }).click();
+    await expect(table).toBeVisible();
+    await expect(page.locator('#shown')).toHaveText('9 changes · 11 context');
+    await page.getByRole('button', { name: 'Restore view', exact: true }).click();
+    await expect(page.locator('.card[data-id="aws_lb_target_group.api"]')).toContainText('1 attached change');
+    await page.locator('.connection-changes > summary').click();
+    await expect(page.locator('.connection-open')).toHaveCount(8);
+    const removed = page.locator('.connection-open[data-connection="aws_route.removed"]');
+    await expect(removed).toContainText('::/0');
+    await removed.click();
+    await expect(page.getByRole('dialog')).toContainText('igw-synthetic');
+    await expect(page.getByRole('dialog')).toContainText('::/0');
+    await page.keyboard.press('Escape');
+    await expect(removed).toBeFocused();
+
+    await removed.evaluate(el => el.setAttribute('data-e2e-before-refresh', 'true'));
+    await request.post('/__test/connection-changes');
+    await expect(page.locator('[data-e2e-before-refresh]')).toHaveCount(0);
+    await expect(removed).toBeFocused();
+    await expect(page.locator('.connection-changes')).toHaveAttribute('open', '');
+    await table.locator('.card-detail').click();
+    const changedRoute = page.locator('.rel').filter({ hasText: 'aws_route.updated' });
+    await changedRoute.locator('summary').click();
+    await expect(changedRoute.locator('.was').filter({ hasText: 'nat-synthetic' })).toBeVisible();
+    await expect(changedRoute).toContainText('igw-synthetic');
+    await page.keyboard.press('Escape');
+    const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(result.violations).toEqual([]);
+    await page.screenshot({ path: testInfo.outputPath('connection-changes.png') });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(table).toBeVisible();
+    await expect(page.locator('#shown')).toHaveText('9 changes · 11 context');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: testInfo.outputPath('connection-changes-mobile.png') });
+    await page.getByRole('tab', { name: 'Plan', exact: true }).click();
+    await expect(page.locator('#review-count')).toHaveText('9 of 20 resources');
+    await expect(page.locator('.resource-open').filter({ hasText: 'aws_route_table.main' })).toHaveCount(0);
+  } finally {
+    await request.post('/__test/refresh');
+  }
+});

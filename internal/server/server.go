@@ -200,6 +200,7 @@ type related struct {
 	Address string                 `json:"address"`
 	Type    string                 `json:"type"`
 	Status  string                 `json:"status"`
+	Before  map[string]interface{} `json:"before,omitempty"`
 	After   map[string]interface{} `json:"after,omitempty"`
 	Unknown []string               `json:"unknown,omitempty"`
 }
@@ -256,7 +257,7 @@ func relate(byAddr map[string]*graph.Detail, addr string) related {
 		return related{Address: addr}
 	}
 	return related{Address: d.Address, Type: d.Type, Status: d.Status,
-		After: d.After, Unknown: d.Unknown}
+		Before: d.Before, After: d.After, Unknown: d.Unknown}
 }
 
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {

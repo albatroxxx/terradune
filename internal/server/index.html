@@ -142,6 +142,17 @@
   .card.destroy  { background: var(--destroy-bg);  border-color: var(--destroy-bd);  color: var(--destroy-fg); }
   .card.destroy .n { text-decoration: line-through; }
   .card .d { color: inherit; }
+  .attached-change-note { display: block; margin-top: 5px; font-size: 11px;
+                          font-weight: 700; color: var(--update-fg); }
+  .connection-changes { margin: 0 0 12px; border-block: 1px solid var(--line); }
+  .connection-changes > summary { padding: 9px 4px; cursor: pointer; font-weight: 700; }
+  .connection-list { list-style: none; margin: 0; padding: 0; }
+  .connection-open { display: flex; align-items: center; gap: 12px; width: 100%;
+                     border: 0; border-top: 1px solid var(--line-soft); background: var(--surface);
+                     color: var(--text); font: inherit; padding: 10px 12px; text-align: left; cursor: pointer; }
+  .connection-open:hover { background: var(--sunken); }
+  .connection-open > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+  .connection-open .action { flex: none; min-width: 72px; }
   .card:focus-within { opacity: 1; }
   .card.hi { box-shadow: 0 0 0 2px rgba(30,40,60,.22); }
   .card.pinned { box-shadow: 0 0 0 2px #3d6ea8; }
@@ -370,7 +381,9 @@ const GRAPH_COLORS = { existing: '#4a8fd4', create: '#35a06b', update: '#d09826'
                        replace: '#d47f2e', destroy: '#d4534e' };
 const LABELS = {
   aws_vpc: 'VPC', aws_subnet: 'Subnet', aws_route_table: 'Route table',
+  aws_default_route_table: 'Default route table',
   aws_route: 'Route', aws_route_table_association: 'Route table association',
+  aws_main_route_table_association: 'Main route table association',
   aws_internet_gateway: 'Internet gateway', aws_nat_gateway: 'NAT gateway',
   aws_egress_only_internet_gateway: 'Egress-only IGW', aws_vpn_gateway: 'VPN gateway',
   aws_vpc_peering_connection: 'Peering connection',
@@ -475,6 +488,22 @@ const CONNECTORS = {
   aws_network_interface_sg_attachment: ['aws_network_interface', 'aws_security_group'],
 };
 
+const ROUTE_TABLE_TYPES = ['aws_route_table', 'aws_default_route_table'];
+const isRouteTable = n => ROUTE_TABLE_TYPES.includes(n.type);
+// A separate Terraform resource can change a parent's entries or bindings
+// without changing the parent's own action. Keep these actions distinct.
+const CHANGE_PARENTS = {
+  ...CONNECTORS,
+  aws_route: ROUTE_TABLE_TYPES,
+  aws_route_table_association: [...ROUTE_TABLE_TYPES, 'aws_subnet'],
+  aws_main_route_table_association: [...ROUTE_TABLE_TYPES, 'aws_vpc'],
+  aws_security_group_rule: ['aws_security_group', 'aws_default_security_group'],
+  aws_vpc_security_group_ingress_rule: ['aws_security_group', 'aws_default_security_group'],
+  aws_vpc_security_group_egress_rule: ['aws_security_group', 'aws_default_security_group'],
+  aws_network_acl_rule: ['aws_network_acl', 'aws_default_network_acl'],
+  aws_lb_listener_rule: ['aws_lb_listener'],
+};
+
 // The order categories are listed in: what a reader looks for first.
 const CATEGORY_ORDER = ['aws_instance', 'aws_network_interface', 'aws_ebs_volume',
   'aws_eip', 'aws_lb', 'aws_lb_target_group', 'aws_lb_listener',
@@ -502,6 +531,16 @@ function buildMap(ws) {
   }
   const depsOfType = (id, pred) =>
     (deps.get(id) || []).filter(d => nodes.has(d) && pred(nodes.get(d)));
+  const attachedChanges = new Map();
+  for (const n of nodes.values()) {
+    if (!CHANGED.has(n.status)) continue;
+    const types = CHANGE_PARENTS[n.type];
+    if (!types) continue;
+    for (const parent of new Set(depsOfType(n.id, p => types.includes(p.type)))) {
+      if (!attachedChanges.has(parent)) attachedChanges.set(parent, []);
+      attachedChanges.get(parent).push(n);
+    }
+  }
   // The same edges read backwards: a load balancer does not mention its
   // listeners, the listeners mention it.
   const dependents = new Map();
@@ -527,7 +566,7 @@ function buildMap(ws) {
 
   for (const [id, n] of nodes) {
     if (n.type !== 'aws_route_table_association') continue;
-    const routeTables = depsOfType(id, m => m.type === 'aws_route_table');
+    const routeTables = depsOfType(id, isRouteTable);
     const associated = depsOfType(id, m => m.type === 'aws_subnet');
     if (associated.length) {
       for (const s of associated) for (const r of routeTables) add(s, r, true);
@@ -544,7 +583,7 @@ function buildMap(ws) {
   const rtGateways = new Map();
   for (const [id, n] of nodes) {
     if (n.type !== 'aws_route') continue;
-    const routeTables = depsOfType(id, m => m.type === 'aws_route_table');
+    const routeTables = depsOfType(id, isRouteTable);
     if (!routeTables.length) continue;
     const allowed = ROUTE_TARGET_TYPES[n.meta?.route_target] || null;
     const ofKind = m => GATEWAYS.has(m.type) && (!allowed || allowed.includes(m.type));
@@ -581,7 +620,7 @@ function buildMap(ws) {
   // internet gateway — the rule the AWS console itself uses.
   const subnetPublic = new Map();
   for (const { from, to } of links) {
-    if (nodes.get(from)?.type !== 'aws_subnet' || nodes.get(to)?.type !== 'aws_route_table') continue;
+    if (nodes.get(from)?.type !== 'aws_subnet' || !nodes.has(to) || !isRouteTable(nodes.get(to))) continue;
     if ((rtGateways.get(to) || new Set()).has('aws_internet_gateway')) subnetPublic.set(from, true);
     else if (!subnetPublic.has(from)) subnetPublic.set(from, false);
   }
@@ -637,7 +676,7 @@ function buildMap(ws) {
     const p = byVpc.get(vpcOf(n.id));
     if (!p) { others.push(n); continue; }
     if (n.type === 'aws_subnet') p.subnets.push(n);
-    else if (n.type === 'aws_route_table') p.routeTables.push(n);
+    else if (isRouteTable(n)) p.routeTables.push(n);
     else if (GATEWAYS.has(n.type)) p.gateways.push(n);
     else {
       // Something living in exactly one subnet is nested inside it; anything
@@ -674,7 +713,7 @@ function buildMap(ws) {
       for (const d of deps.get(id) || []) {
         if (!drawn.has(d)) continue;
         if (!beside.has(id) && !beside.has(d)) continue;
-        if (nodes.get(d)?.type === 'aws_route_table') continue; // not a route hop
+        if (isRouteTable(nodes.get(d))) continue; // not a route hop
         add(id, d);
       }
     }
@@ -807,7 +846,7 @@ function buildMap(ws) {
   }
   const unique = [...byPair.values()];
   const region = [...nodes.values()].find(n => n.meta?.region)?.meta.region || '';
-  return { workspace: ws.name, panels, others, scopes, region, links: unique, nodes, subnetPublic };
+  return { workspace: ws.name, panels, others, scopes, region, links: unique, nodes, deps, attachedChanges, subnetPublic };
 }
 
 // ---------- render map --------------------------------------------------
@@ -820,11 +859,11 @@ const filterActive = () => filter.text !== '' || filter.statuses.size > 0;
 
 // A resource matches on its address, type, friendly type name, or the few
 // attributes shown on its card — so "10.0.1" or "nat" both find things.
-function matches(n) {
-  if (filter.statuses.size && !filter.statuses.has(n.status)) return false;
+function matches(n, ignoreStatus = false) {
+  if (!ignoreStatus && filter.statuses.size && !filter.statuses.has(n.status)) return false;
   if (!filter.text) return true;
   const hay = [n.id, n.type, label(n.type), n.meta?.name, n.meta?.cidr,
-               n.meta?.az, n.meta?.spec, n.meta?.id]
+               n.meta?.az, n.meta?.spec, n.meta?.id, n.meta?.destination]
     .filter(Boolean).join(' ').toLowerCase();
   return hay.includes(filter.text);
 }
@@ -834,11 +873,45 @@ function matches(n) {
 // shown without the subnet that holds it.
 function visibleIn(ws, m) {
   const vis = new Set();
-  for (const n of ws.nodes || []) if (matches(n)) vis.add(n.id);
+  for (const n of ws.nodes || []) {
+    if (matches(n) && (!changesOnly || CHANGED.has(n.status)) &&
+        (!reviewService || n.type === reviewService)) vis.add(n.id);
+  }
+  for (const [parent, kids] of m.attachedChanges) {
+    const n = m.nodes.get(parent);
+    if ((!reviewService || n.type === reviewService) && matches(n, true)) {
+      for (const child of kids) {
+        if (!filter.statuses.size || filter.statuses.has(child.status)) {
+          vis.add(parent); vis.add(child.id);
+        }
+      }
+    }
+  }
+  // Build from the complete workspace, then retain just the endpoints and
+  // containers that give the selected changes context.
+  for (const id of [...vis]) {
+    const n = m.nodes.get(id);
+    if (GLUE.has(n.type) || CHANGE_PARENTS[n.type]) {
+      for (const dep of m.deps.get(id) || []) if (m.nodes.has(dep)) vis.add(dep);
+    }
+  }
   for (const p of m.panels) {
+    for (const stack of p.lbs || []) {
+      let added = true;
+      while (added) {
+        added = false;
+        for (const link of m.links) {
+          if (link.panel === stack.key && vis.has(link.to) && !vis.has(link.from)) {
+            vis.add(link.from); added = true;
+          }
+        }
+      }
+    }
     for (const [subnetID, kids] of p.contents) {
       if (kids.some(k => vis.has(k.id))) vis.add(subnetID);
     }
+    if ([...p.subnets, ...p.routeTables, ...p.gateways, ...p.inVpc,
+         ...(p.lbs || []).map(stack => stack.lb)].some(n => vis.has(n.id))) vis.add(p.vpc.id);
   }
   return vis;
 }
@@ -866,9 +939,12 @@ function renderChips(state) {
 }
 
 let RENDER_WS = ''; // workspace whose cards are being emitted
+let RENDER_ATTACHED = new Map();
 
 function cardHTML(n, detail, nested) {
   const nice = displayName(n);
+  const changes = RENDER_ATTACHED.get(n.id) || [];
+  const changeNote = changes.length ? `${changes.length} attached change${changes.length === 1 ? '' : 's'}` : '';
   let det = detail !== undefined && detail !== null ? detail
     : (n.meta?.cidr || n.meta?.spec || n.meta?.az || '');
   // Keep the resource name visible when the title came from somewhere else,
@@ -877,11 +953,12 @@ function cardHTML(n, detail, nested) {
   return `<div class="card ${n.status}" data-id="${esc(n.id)}" data-ws="${esc(RENDER_WS)}"
       title="${esc(n.id)}">
     <button type="button" class="card-main" aria-pressed="false"
-      aria-label="${esc(`Pin path: ${nice}, ${label(n.type)}, ${n.status}`)}">
+      aria-label="${esc(`Pin path: ${nice}, ${label(n.type)}, ${n.status}${changeNote ? ', ' + changeNote : ''}`)}">
       <span class="ico">${iconSVG(n.type)}</span>
       <span class="n">${esc(nice)}</span>
       <span class="d"><span>${esc(label(n.type))}${det ? ' · ' + esc(det) : ''}</span>
         <span class="st">${esc(n.status)}</span></span>
+      ${changeNote ? `<span class="attached-change-note">${esc(changeNote)}</span>` : ''}
     </button>
     <button type="button" class="card-detail" aria-label="${esc(`View details for ${n.id}`)}"
       title="View details">&#9432;</button>
@@ -1038,16 +1115,19 @@ const cliName = ws => CLI_NAMES[ws.cli] || 'Terraform';
 function renderMap(state) {
   const restoreFocus = preserveFocus();
   const body = $('mapbody');
+  const openConnections = new Set([...body.querySelectorAll('.connection-changes[open]')].map(el => el.dataset.workspace));
   const maps = [];
-  let shown = 0, total = 0;
+  let shown = 0, changedShown = 0, total = 0;
 
-  body.innerHTML = (state.workspaces || []).map(ws => {
+  body.innerHTML = (state.workspaces || []).filter(ws => !reviewWorkspace || ws.name === reviewWorkspace).map(ws => {
     RENDER_WS = ws.name;
     const m = buildMap(ws);
     maps.push(m);
     const vis = visibleIn(ws, m);
+    RENDER_ATTACHED = new Map([...m.attachedChanges].map(([id, kids]) => [id, kids.filter(n => vis.has(n.id))]));
     total += (ws.nodes || []).length;
     shown += vis.size;
+    changedShown += (ws.nodes || []).filter(n => vis.has(n.id) && CHANGED.has(n.status)).length;
 
     const head = `<div class="ws-head">
         <h2>${esc(ws.name)}</h2>
@@ -1072,14 +1152,36 @@ function renderMap(state) {
           ${groupedHTML(list)}
         </div>`;
     }
+    const connections = (ws.nodes || []).filter(n => GLUE.has(n.type) && vis.has(n.id) &&
+      (CHANGED.has(n.status) || filterActive() || reviewService));
+    if (connections.length) {
+      const changed = connections.every(n => CHANGED.has(n.status));
+      inner = `<details class="connection-changes" data-workspace="${esc(ws.name)}"${!inner || openConnections.has(ws.name) ? ' open' : ''}>
+        <summary>${changed ? 'Connection changes' : 'Connections'} (${connections.length})</summary>
+        <ul class="connection-list">${connections.map(n => `<li><button type="button" class="connection-open"
+          data-connection="${esc(n.id)}" data-resource="${esc(resourceKey(ws.name, n.id))}"
+          aria-label="${esc(`View ${ACTION_NAMES[n.status].toLowerCase()} details for ${n.id}`)}">
+          <span class="action ${n.status}">${ACTION_NAMES[n.status]}</span>
+          <span><strong>${esc(label(n.type))}${n.meta?.destination ? ' · ' + esc(n.meta.destination) : ''}</strong>
+            <span class="resource-address">${esc(n.id)}</span></span>
+        </button></li>`).join('')}</ul></details>` + inner;
+    }
     if (!inner && !err) {
-      inner = `<div class="empty">${(ws.nodes || []).length && filterActive()
+      inner = `<div class="empty">${(ws.nodes || []).length && (filterActive() || changesOnly || reviewService)
         ? 'Nothing here matches the current filter.' : 'No resources in this plan.'}</div>`;
     }
     return `<section class="ws">${head}${err}${inner}</section>`;
   }).join('');
 
-  $('shown').textContent = filterActive() ? `${shown} of ${total} shown` : `${total} resources`;
+  RENDER_ATTACHED = new Map();
+  $('shown').textContent = changesOnly ? `${changedShown} changes · ${shown - changedShown} context` :
+    filterActive() || reviewService ? `${shown} of ${total} shown` : `${total} resources`;
+  for (const button of body.querySelectorAll('.connection-open')) {
+    button.addEventListener('click', () => {
+      const [workspace, address] = JSON.parse(button.dataset.resource);
+      openDetail(workspace, address, button);
+    });
+  }
   drawRibbons(maps);
   wireHover(maps);
   restoreFocus();
@@ -1373,8 +1475,10 @@ function attrRows(after, before, unknown) {
                         ...(before ? Object.keys(before) : [])]);
   const rows = [...keys].filter(k => !SKIP_ATTRS.has(k)).sort().map(k => {
     let cell;
-    if (unk.has(k) && (after?.[k] === undefined || after?.[k] === null)) {
-      cell = '<span class="unk">(known after apply)</span>';
+    if (unk.has(k)) {
+      cell = (before && k in before ? `<span class="was">${fmtValue(before[k])}</span><br>` : '') +
+        '<span class="unk">(known after apply)</span>';
+      if (after?.[k] !== undefined && after?.[k] !== null) cell += '<br>' + fmtValue(after[k]);
     } else {
       const a = after?.[k], b = before?.[k];
       const changed = before && JSON.stringify(a) !== JSON.stringify(b);
@@ -1405,6 +1509,7 @@ function summarize(type, after, unknown) {
 
 function relatedHTML(r) {
   const short = r.address.replace(/^module\..*?\./, '');
+  const values = r.status === 'destroy' ? r.before : r.after;
   return `<details class="rel">
     <summary>
       <span class="ico">${iconSVG(r.type)}</span>
@@ -1412,9 +1517,9 @@ function relatedHTML(r) {
       <span class="pill ${esc(r.status)}" style="margin-left:auto">${esc(r.status || '')}</span>
     </summary>
     <div class="inner">
-      ${summarize(r.type, r.after, r.unknown)
-        ? `<div class="sum" style="margin-bottom:6px">${esc(summarize(r.type, r.after, r.unknown))}</div>` : ''}
-      ${attrRows(r.after, null, r.unknown)}
+      ${summarize(r.type, values, r.unknown)
+        ? `<div class="sum" style="margin-bottom:6px">${esc(summarize(r.type, values, r.unknown))}</div>` : ''}
+      ${attrRows(values, r.status === 'update' || r.status === 'replace' ? r.before : null, r.unknown)}
     </div>
   </details>`;
 }
@@ -1455,12 +1560,14 @@ async function openDetail(wsName, address, opener) {
 
   const sec = (title, html) => `<h3>${title}</h3>${html}`;
   const rels = list => list && list.length
-    ? list.map(relatedHTML).join('') : '<div class="none">none</div>';
+    ? [...list].sort((a, b) => ACTION_ORDER[a.status] - ACTION_ORDER[b.status]).map(relatedHTML).join('')
+    : '<div class="none">none</div>';
   // "Attached" is what points at this resource: a route table's routes and
   // associations, an instance's volume and target-group attachments.
   $('dr-body').innerHTML =
     sec(`Attached <span style="color:var(--faint)">(${(d.attached || []).length})</span>`, rels(d.attached)) +
-    sec('Configuration', attrRows(d.after, d.status === 'update' || d.status === 'replace' ? d.before : null, d.unknown)) +
+    sec('Configuration', attrRows(d.status === 'destroy' ? d.before : d.after,
+      d.status === 'update' || d.status === 'replace' ? d.before : null, d.unknown)) +
     sec(`Depends on <span style="color:var(--faint)">(${(d.dependsOn || []).length})</span>`, rels(d.dependsOn));
 }
 
@@ -1504,7 +1611,7 @@ function setExpandedView(expanded) {
   $('expand-view').setAttribute('aria-label', label);
   $('expand-view').setAttribute('title', label);
   $('expand-view').textContent = expanded ? '\u2922' : '\u26f6';
-  if (latest && tab === 'map') renderMap(scopedState(latest));
+  if (latest && tab === 'map') renderMap(latest);
   else if (tab === 'graph') fitGraph();
 }
 $('expand-view').onclick = () => setExpandedView(!expandedView);
@@ -1730,7 +1837,7 @@ async function paint(s) {
   updateWorkspaceFilter(s);
   renderChips({...s, workspaces: (s.workspaces || []).filter(ws => !reviewWorkspace || ws.name === reviewWorkspace)});
   if (tab === 'review') renderReview(s);
-  else if (tab === 'map') renderMap(scopedState(s));
+  else if (tab === 'map') renderMap(s);
   else {
     $('graph-all').hidden = !graphFocus;
     $('graph-context').textContent = graphFocus ? graphFocus.address : 'Dependent → prerequisite';
@@ -1787,7 +1894,7 @@ async function render(s) {
 }
 
 window.addEventListener('resize', () => {
-  if (latest && tab === 'map') renderMap(scopedState(latest));
+  if (latest && tab === 'map') renderMap(latest);
   else if (tab === 'graph') fitGraph();
 });
 initializeReview();
