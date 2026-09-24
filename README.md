@@ -10,7 +10,7 @@ Terradune turns initialized Terraform workspaces into a local plan review interf
 [![Go Reference](https://pkg.go.dev/badge/github.com/albatroxxx/terradune.svg)](https://pkg.go.dev/github.com/albatroxxx/terradune)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-![Terradune Resource Map](site/assets/resource-map-v1.0.3.png)
+![Terradune Resource Map with compact subnet resources and VPC inventory](site/assets/resource-map-v1.0.4.jpg)
 
 **[Website](https://albatroxxx.github.io/terradune/) · [Installation guide](https://albatroxxx.github.io/terradune/docs/) · [Latest release](https://github.com/albatroxxx/terradune/releases/latest)**
 
@@ -35,7 +35,7 @@ Terradune requires **Go 1.27.1 or newer** and a separate
 go install github.com/albatroxxx/terradune@latest
 ```
 
-Go is the sole supported installation method. Use `@v1.0.3` instead of
+Go is the sole supported installation method. Use `@v1.0.4` instead of
 `@latest` to pin this release.
 
 Add Go's executable directory to your PATH. On macOS/Linux, for the current

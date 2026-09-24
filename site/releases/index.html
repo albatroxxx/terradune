@@ -2,17 +2,20 @@
 <html lang="en"><head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Terradune Releases</title>
-  <meta name="description" content="Terradune v1.0.3 adds dedicated resource-type filters, clearer map connections, and a single Go installation path. Read the release history.">
+  <meta name="description" content="Terradune v1.0.4 fixes route-change visibility and adds compact subnet previews with a grouped VPC resource inventory. Read the release history.">
   <link rel="canonical" href="https://albatroxxx.github.io/terradune/releases/">
   <meta name="robots" content="index,follow"><meta property="og:type" content="website">
   <meta property="og:title" content="Terradune Releases"><meta property="og:description" content="Release notes for Terradune, the local Terraform plan review workspace.">
-  <meta property="og:url" content="https://albatroxxx.github.io/terradune/releases/"><meta property="og:image" content="https://albatroxxx.github.io/terradune/assets/resource-map-v1.0.3.png"><meta name="twitter:card" content="summary_large_image">
+  <meta property="og:url" content="https://albatroxxx.github.io/terradune/releases/"><meta property="og:image" content="https://albatroxxx.github.io/terradune/assets/resource-map-v1.0.4.jpg"><meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="../assets/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/site.css">
 </head><body>
   <a class="skip" href="#main">Skip to content</a>
-  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">Terradune</a><nav aria-label="Main"><a href="../docs/">Get started</a><a href="./" aria-current="page">v1.0.3</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
-  <main id="main" class="docs-layout"><nav class="docs-nav" aria-label="Release navigation"><a href="#v103">v1.0.3</a><a href="#v102">v1.0.2</a><a href="#v101">v1.0.1</a><a href="#v1">v1.0.0</a><a href="../docs/">Installation</a><a href="https://github.com/albatroxxx/terradune/releases">All releases</a></nav><article class="prose">
-    <p class="eyebrow">RELEASE NOTES</p><h1 id="v103">Terradune v1.0.3</h1><p class="release-date">Latest release</p>
+  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">Terradune</a><nav aria-label="Main"><a href="../docs/">Get started</a><a href="./" aria-current="page">v1.0.4</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
+  <main id="main" class="docs-layout"><nav class="docs-nav" aria-label="Release navigation"><a href="#v104">v1.0.4</a><a href="#v103">v1.0.3</a><a href="#v102">v1.0.2</a><a href="#v101">v1.0.1</a><a href="#v1">v1.0.0</a><a href="../docs/">Installation</a><a href="https://github.com/albatroxxx/terradune/releases">All releases</a></nav><article class="prose">
+    <p class="eyebrow">RELEASE NOTES</p><h1 id="v104">Terradune v1.0.4</h1><p class="release-date">Latest release</p>
+    <ul><li>Changes-only keeps changed routes, associations, rules, and attachments visible alongside their unchanged topology. Connection details include previous values.</li><li>Dense subnets use compact resource previews with access to the full subnet-filtered inventory.</li><li>Grouped VPC inventory includes compute and containers, databases and caches, storage, networking, security, and other resources with known VPC placement.</li><li>Natural sorting and preserved focus, selection, and scrolling improve review of larger plans.</li></ul>
+    <p><a class="button primary" href="../docs/#go">Install with Go</a> <a class="button" href="https://github.com/albatroxxx/terradune/releases/tag/v1.0.4">GitHub release</a></p>
+    <h2 id="v103">Terradune v1.0.3</h2>
     <ul><li>Plan filters keep EC2 instances, VPCs, subnets, and every other resource type separate.</li><li>Resource Map connections use teal filled circles for direct dependencies and blue hollow circles for indirect associations.</li><li>Go is the sole supported installation method, with setup steps for macOS, Linux, and Windows.</li></ul>
     <p><a class="button primary" href="../docs/#go">Install with Go</a> <a class="button" href="https://github.com/albatroxxx/terradune/releases/tag/v1.0.3">GitHub release</a></p>
     <h2 id="v102">Terradune v1.0.2</h2><p>Correctly pairs <code>for_each</code> route-table associations with their subnets before apply. Subnets with no known association no longer claim to be private.</p>

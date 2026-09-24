@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.0.4
+
+### Fixed
+
+- Changes-only Resource Map retains unchanged topology around changed routes,
+  associations, rules, and attachments. Parent resources show attached-change
+  counts without falsely changing their Terraform action.
+- Connection changes expose added, updated, replaced, and deleted resources,
+  including unresolved endpoints, previous values, and unknown repeated blocks.
+- Route metadata and filtering handle IPv6, prefix lists, default route tables,
+  and modern security-group ingress/egress resources.
+
+### Improved
+
+- Dense subnets show up to five compact resource references instead of stacked
+  cards, with access to the full subnet-filtered VPC inventory.
+- VPC inventory groups compute and containers, databases and caches, storage,
+  networking, security, and other resources. Placement follows subnet/cluster
+  relationships, without attributing unrelated dependencies to a VPC.
+- Natural resource ordering, size/runtime metadata, multi-subnet associations,
+  accessible details, and preserved selection, scroll, and focus on refresh.
+
 ## 1.0.3
 
 - Plan filters use each exact resource type instead of combined service groups.
