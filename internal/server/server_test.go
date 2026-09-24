@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -69,5 +70,49 @@ func TestSensitiveValuesDoNotReachPublicEndpoints(t *testing.T) {
 		if w.Code != 200 || strings.Contains(w.Body.String(), "secret-") {
 			t.Fatalf("%s leaked or failed: %s", path, w.Body.String())
 		}
+	}
+}
+
+func TestAttachedResourcesIncludeSanitizedBeforeValues(t *testing.T) {
+	raw, err := os.ReadFile("../graph/testdata/connection_changes_plan.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var plan tfjson.Plan
+	if err := json.Unmarshal(raw, &plan); err != nil {
+		t.Fatal(err)
+	}
+	for _, rc := range plan.ResourceChanges {
+		if rc.Address == "aws_route.updated" {
+			rc.Change.Before.(map[string]interface{})["description"] = "secret-before"
+			rc.Change.BeforeSensitive = map[string]interface{}{"description": true}
+		}
+	}
+	s := New("/test")
+	s.SetGraph("test", "/test", "terraform", plan.TerraformVersion, graph.Build(&plan), graph.BuildDetails(&plan))
+	r := httptest.NewRequest("GET", "/resource?workspace=test&address=aws_route_table.main", nil)
+	r.Host = "localhost"
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusOK || strings.Contains(w.Body.String(), "secret-before") {
+		t.Fatalf("attached details leaked or failed: %s", w.Body.String())
+	}
+	var response resourceResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	attached := map[string]related{}
+	for _, resource := range response.Attached {
+		attached[resource.Address] = resource
+	}
+	updated := attached["aws_route.updated"]
+	if updated.Before["nat_gateway_id"] != "nat-synthetic" || updated.After["gateway_id"] != "igw-synthetic" {
+		t.Fatalf("attached update missing diff: %+v", updated)
+	}
+	if updated.Before["description"] != "(sensitive value)" {
+		t.Fatalf("before value was not redacted: %+v", updated.Before)
+	}
+	if attached["aws_route.removed"].Before["destination_ipv6_cidr_block"] != "::/0" {
+		t.Fatal("deleted attached route missing before values")
 	}
 }

@@ -2,6 +2,7 @@ package graph
 
 import (
 	"log"
+	"sort"
 
 	tfjson "github.com/hashicorp/terraform-json"
 	"github.com/hashicorp/terraform-json/sanitize"
@@ -63,14 +64,32 @@ func unknownKeys(v interface{}) []string {
 	}
 	var keys []string
 	for k, val := range m {
-		if b, ok := val.(bool); ok && b {
-			keys = append(keys, k)
-			continue
-		}
-		// Nested structures count as unknown when anything inside them is.
-		if nested := unknownKeys(val); len(nested) > 0 {
+		if containsUnknown(val) {
 			keys = append(keys, k)
 		}
 	}
+	sort.Strings(keys)
 	return keys
+}
+
+// Terraform encodes unknown fields inside repeated blocks (routes, ingress,
+// listener actions) as arrays of masks, as well as nested objects.
+func containsUnknown(v interface{}) bool {
+	switch value := v.(type) {
+	case bool:
+		return value
+	case map[string]interface{}:
+		for _, child := range value {
+			if containsUnknown(child) {
+				return true
+			}
+		}
+	case []interface{}:
+		for _, child := range value {
+			if containsUnknown(child) {
+				return true
+			}
+		}
+	}
+	return false
 }

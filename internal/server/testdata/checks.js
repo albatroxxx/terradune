@@ -1067,6 +1067,118 @@ check('a subnet with no known association claims neither public nor private', fu
   renderMap(STATE);
 });
 
+function checkConnectionChanges(name, fn) {
+  check(name, function () {
+    filter.text = ''; filter.statuses = new Set();
+    reviewService = ''; reviewWorkspace = ''; changesOnly = false;
+    try { fn(CONNECTION_STATE.workspaces[0]); }
+    finally {
+      filter.text = ''; filter.statuses = new Set();
+      reviewService = ''; reviewWorkspace = ''; changesOnly = false;
+    }
+  });
+}
+
+checkConnectionChanges('unchanged parents expose attached changes without changing Terraform actions', function (ws) {
+  var m = buildMap(ws);
+  var routes = m.attachedChanges.get('aws_route_table.main');
+  if (!routes || routes.length !== 5) throw new Error('route and association changes not attached');
+  if (m.nodes.get('aws_route_table.main').status !== 'existing') throw new Error('invented route-table update');
+  if (!m.attachedChanges.has('aws_security_group.app')) throw new Error('separate security-group rule lost');
+  if (!m.attachedChanges.has('aws_lb_target_group.api')) throw new Error('target attachment deletion lost');
+  if (!m.panels[0].routeTables.some(n => n.type === 'aws_default_route_table')) throw new Error('default route table not recognized');
+});
+
+checkConnectionChanges('changed collapsed resources remain inspectable even with unresolved endpoints', function () {
+  renderMap(CONNECTION_STATE);
+  var h = __sinks.mapbody;
+  for (var address of ['aws_route.added', 'aws_route.updated', 'aws_route.removed', 'aws_route.replaced',
+                       'aws_route.unresolved', 'aws_main_route_table_association.default', 'aws_lb_target_group_attachment.api']) {
+    if (!h.includes('data-connection="' + address + '"')) throw new Error('missing connection row: ' + address);
+  }
+  if (!h.includes('5 attached changes')) throw new Error('route-table indicator missing');
+  if (!h.includes('::/0')) throw new Error('deleted IPv6 route lost destination');
+});
+
+checkConnectionChanges('changes-only retains unchanged endpoints and load-balancer containers', function (ws) {
+  changesOnly = true;
+  var vis = visibleIn(ws, buildMap(ws));
+  for (var address of ['aws_route_table.main', 'aws_vpc.main', 'aws_subnet.private',
+                       'aws_nat_gateway.main', 'aws_lb.app', 'aws_lb_listener.http',
+                       'aws_lb_target_group.api', 'aws_instance.api', 'aws_security_group.app']) {
+    if (!vis.has(address)) throw new Error('lost context: ' + address);
+  }
+  renderMap(CONNECTION_STATE);
+  if (!__sinks.mapbody.includes('data-id="aws_lb_target_group.api"')) throw new Error('load balancer panel was discarded');
+  if (!__sinks.mapbody.includes('data-id="aws_route_table.main"')) throw new Error('route-table context not rendered');
+  if (!__sinks.mapbody.includes('class="card existing"')) throw new Error('unchanged context was relabelled');
+});
+
+checkConnectionChanges('action filters keep the parent but exclude other connection actions', function () {
+  filter.statuses = new Set(['destroy']);
+  renderMap(CONNECTION_STATE);
+  var h = __sinks.mapbody;
+  if (!h.includes('data-id="aws_route_table.main"')) throw new Error('destroy lost unchanged parent');
+  if (!h.includes('data-connection="aws_route.removed"')) throw new Error('destroyed route missing');
+  if (h.includes('data-connection="aws_route.added"')) throw new Error('create leaked through destroy filter');
+  if (!h.includes('1 attached change')) throw new Error('badge did not respect action filter');
+});
+
+checkConnectionChanges('changes-only excludes unrelated unchanged resources', function (ws) {
+  var copy = JSON.parse(JSON.stringify(ws));
+  copy.nodes.push({id: 'aws_s3_bucket.unrelated', type: 'aws_s3_bucket', status: 'existing'});
+  changesOnly = true;
+  var vis = visibleIn(copy, buildMap(copy));
+  if (vis.has('aws_s3_bucket.unrelated')) throw new Error('unrelated unchanged resource leaked into context');
+});
+
+checkConnectionChanges('an unresolved connection alone is visible and expanded', function (ws) {
+  var copy = JSON.parse(JSON.stringify(ws));
+  copy.nodes = copy.nodes.filter(n => n.id === 'aws_route.unresolved');
+  copy.edges = [];
+  changesOnly = true;
+  renderMap({workspaces: [copy]});
+  if (!__sinks.mapbody.includes('data-connection="aws_route.unresolved"')) throw new Error('orphan change hidden');
+  if (!__sinks.mapbody.includes('data-workspace="' + copy.name + '" open')) throw new Error('orphan change collapsed');
+});
+
+checkConnectionChanges('route search and resource-type filters retain relevant map context', function () {
+  changesOnly = true; reviewService = 'aws_route'; filter.text = '10.50.0.0/16';
+  renderMap(CONNECTION_STATE);
+  if (!__sinks.mapbody.includes('data-id="aws_route_table.main"')) throw new Error('destination search lost route parent');
+  if (!__sinks.mapbody.includes('data-connection="aws_route.added"')) throw new Error('destination search lost route');
+  if (__sinks.mapbody.includes('data-connection="aws_route.updated"')) throw new Error('unrelated route matched');
+  reviewService = 'aws_route_table'; filter.text = '';
+  renderMap(CONNECTION_STATE);
+  if (!__sinks.mapbody.includes('5 attached changes')) throw new Error('parent type filter hides attached changes');
+  filter.text = 'no-such-resource';
+  renderMap(CONNECTION_STATE);
+  if (cardCount()) throw new Error('context survived an empty selection');
+});
+
+checkConnectionChanges('inline route-table updates stay visible without separate route resources', function (ws) {
+  var standalone = JSON.parse(JSON.stringify(ws));
+  standalone.nodes = standalone.nodes.filter(n => !GLUE.has(n.type));
+  standalone.nodes.forEach(n => { n.status = n.id === 'aws_route_table.main' ? 'update' : 'existing'; });
+  changesOnly = true;
+  renderMap({workspaces: [standalone]});
+  if (!__sinks.mapbody.includes('class="card update" data-id="aws_route_table.main"')) throw new Error('inline update hidden');
+  if (!__sinks.mapbody.includes('data-id="aws_vpc.main"')) throw new Error('inline update lost containing VPC');
+});
+
+checkConnectionChanges('attached detail rows include diffs and deleted values', function () {
+  var updated = relatedHTML({address: 'aws_route.updated', type: 'aws_route', status: 'update',
+    before: {gateway_id: 'igw-old'}, after: {gateway_id: 'igw-new'}});
+  if (!updated.includes('class="was"') || !updated.includes('igw-old') || !updated.includes('igw-new')) {
+    throw new Error('attached route update lost before/after');
+  }
+  var removed = relatedHTML({address: 'aws_route.removed', type: 'aws_route', status: 'destroy',
+    before: {destination_ipv6_cidr_block: '::/0', gateway_id: 'igw-old'}});
+  if (!removed.includes('::/0') || !removed.includes('igw-old')) throw new Error('deleted route details empty');
+  var unknown = attrRows({route: [{gateway_id: null}]}, {route: [{gateway_id: 'igw-old'}]}, ['route']);
+  if (!unknown.includes('known after apply') || !unknown.includes('igw-old')) throw new Error('nested unknown change hidden');
+});
+
 checkDetailRequests().then(function () {
   if (__failures) print('\n' + __failures + ' FAILURE(S)');
   else print('\nALL CHECKS PASSED');
