@@ -113,6 +113,8 @@ persistent state of its own; temporary plan directories are cleaned up.
 
 The default view groups VPCs, subnets, route tables, gateways, and load balancers by their infrastructure roles. Resources can appear in more than one contextual placement here; those placements do not duplicate the Plan inventory.
 
+Subnets show compact, naturally sorted resource references rather than nested cards. Large subnets preview five resources; **View all** opens the subnet-filtered VPC inventory. The full-width **Resources in this VPC** table groups compute and containers, databases and caches, storage, networking, security, and other resources. Shared resources appear once in that inventory with their subnet associations. Placement follows plan relationships, including supported subnet groups, rather than assuming every AWS resource belongs to a VPC.
+
 Pin a resource to keep its path highlighted, or use its details button. Solid teal lines end in filled circles for direct dependencies; dashed blue lines end in hollow circles for indirect associations through collapsed routes or attachments. Connections route around card headers and remain visible when columns stack. Pins and paths stay within their workspace. The legend groups resource actions and connection styles.
 
 Changes to separate routes, associations, and attachments appear on their parent as attached changes, without changing the parent's Terraform action. The connection list opens their individual details, including deleted routes and unresolved endpoints. With **Changes only** enabled, the map keeps relevant unchanged endpoints and containers for context; the counter distinguishes them from actual changes.

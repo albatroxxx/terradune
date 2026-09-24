@@ -1,0 +1,878 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.14.4",
+  "resource_changes": [
+    {
+      "address": "aws_vpc.main",
+      "mode": "managed",
+      "type": "aws_vpc",
+      "name": "main",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "id": "vpc-dense",
+          "cidr_block": "10.30.0.0/16",
+          "tags": {
+            "Name": "Demo VPC"
+          }
+        },
+        "after": {
+          "id": "vpc-dense",
+          "cidr_block": "10.30.0.0/16",
+          "tags": {
+            "Name": "Demo VPC"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_subnet.servers",
+      "mode": "managed",
+      "type": "aws_subnet",
+      "name": "servers",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "id": "subnet-dense",
+          "vpc_id": "vpc-dense",
+          "cidr_block": "10.30.1.0/24",
+          "availability_zone": "us-east-1a",
+          "tags": {
+            "Name": "servers"
+          }
+        },
+        "after": {
+          "id": "subnet-dense",
+          "vpc_id": "vpc-dense",
+          "cidr_block": "10.30.1.0/24",
+          "availability_zone": "us-east-1a",
+          "tags": {
+            "Name": "servers"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_route_table.private",
+      "mode": "managed",
+      "type": "aws_route_table",
+      "name": "private",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "id": "rtb-dense",
+          "vpc_id": "vpc-dense"
+        },
+        "after": {
+          "id": "rtb-dense",
+          "vpc_id": "vpc-dense"
+        }
+      }
+    },
+    {
+      "address": "aws_route_table_association.servers",
+      "mode": "managed",
+      "type": "aws_route_table_association",
+      "name": "servers",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "route_table_id": "rtb-dense",
+          "subnet_id": "subnet-dense"
+        },
+        "after": {
+          "route_table_id": "rtb-dense",
+          "subnet_id": "subnet-dense"
+        }
+      }
+    },
+    {
+      "address": "aws_security_group.servers",
+      "mode": "managed",
+      "type": "aws_security_group",
+      "name": "servers",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "id": "sg-dense",
+          "vpc_id": "vpc-dense",
+          "tags": {
+            "Name": "Server security group"
+          }
+        },
+        "after": {
+          "id": "sg-dense",
+          "vpc_id": "vpc-dense",
+          "tags": {
+            "Name": "Server security group"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[0]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 0,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-0",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-01"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[1]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 1,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-1",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-02"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[2]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 2,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-2",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-03"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[3]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 3,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-3",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-04"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[4]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 4,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-4",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-05"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[5]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 5,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-5",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-06"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[6]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 6,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-6",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-07"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[7]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 7,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-7",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-08"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[8]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 8,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-8",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-09"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[9]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 9,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-9",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-10"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[10]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 10,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-10",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-11"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[11]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 11,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-11",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-12"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[12]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 12,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-12",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-13"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[13]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 13,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-13",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-14"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[14]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 14,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-14",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-15"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[15]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 15,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-15",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-16"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[16]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 16,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-16",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-17"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[17]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 17,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-17",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-18"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[18]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 18,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-18",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-19"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[19]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 19,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-19",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-20"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[20]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 20,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-20",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-21"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[21]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 21,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-21",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-22"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[22]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 22,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-22",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-23"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[23]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 23,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-23",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-24"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[24]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 24,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-24",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-25"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[25]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 25,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-25",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-26"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[26]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 26,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-26",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-27"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[27]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 27,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-27",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-28"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[28]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 28,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-28",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-29"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.servers[29]",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "servers",
+      "index": 29,
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-dense-29",
+          "subnet_id": "subnet-dense",
+          "vpc_security_group_ids": [
+            "sg-dense"
+          ],
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "server-30"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -132,11 +132,22 @@ func runPageChecks(t *testing.T, jsc string) {
 	b.WriteString("var CONNECTION_STATE = ")
 	b.Write(stateFromFixtures(t, "connection_changes"))
 	b.WriteString(";\n")
+	b.WriteString("var DENSE_STATE = ")
+	b.Write(stateFromFixtures(t, "dense_vpc"))
+	b.WriteString(";\nvar MIXED_STATE = ")
+	b.Write(stateFromFixtures(t, "mixed_vpc"))
+	b.WriteString(";\n")
 	review, err := static.ReadFile("assets/review.js")
 	if err != nil {
 		t.Fatal(err)
 	}
 	b.Write(review)
+	b.WriteString("\n")
+	inventory, err := static.ReadFile("assets/map-inventory.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.Write(inventory)
 	b.WriteString("\n")
 	b.Write(script)
 	b.WriteString("\n")

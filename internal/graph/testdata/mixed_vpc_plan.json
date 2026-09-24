@@ -1,0 +1,484 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.14.4",
+  "resource_changes": [
+    {
+      "address": "aws_vpc.main",
+      "mode": "managed",
+      "type": "aws_vpc",
+      "name": "main",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "id": "vpc-dense",
+          "cidr_block": "10.30.0.0/16",
+          "tags": {
+            "Name": "Demo VPC"
+          }
+        },
+        "after": {
+          "id": "vpc-dense",
+          "cidr_block": "10.30.0.0/16",
+          "tags": {
+            "Name": "Demo VPC"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_subnet.servers",
+      "mode": "managed",
+      "type": "aws_subnet",
+      "name": "servers",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "id": "subnet-dense",
+          "vpc_id": "vpc-dense",
+          "cidr_block": "10.30.1.0/24",
+          "availability_zone": "us-east-1a",
+          "tags": {
+            "Name": "servers"
+          }
+        },
+        "after": {
+          "id": "subnet-dense",
+          "vpc_id": "vpc-dense",
+          "cidr_block": "10.30.1.0/24",
+          "availability_zone": "us-east-1a",
+          "tags": {
+            "Name": "servers"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_route_table.private",
+      "mode": "managed",
+      "type": "aws_route_table",
+      "name": "private",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "id": "rtb-dense",
+          "vpc_id": "vpc-dense"
+        },
+        "after": {
+          "id": "rtb-dense",
+          "vpc_id": "vpc-dense"
+        }
+      }
+    },
+    {
+      "address": "aws_route_table_association.servers",
+      "mode": "managed",
+      "type": "aws_route_table_association",
+      "name": "servers",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "route_table_id": "rtb-dense",
+          "subnet_id": "subnet-dense"
+        },
+        "after": {
+          "route_table_id": "rtb-dense",
+          "subnet_id": "subnet-dense"
+        }
+      }
+    },
+    {
+      "address": "aws_security_group.servers",
+      "mode": "managed",
+      "type": "aws_security_group",
+      "name": "servers",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "id": "sg-dense",
+          "vpc_id": "vpc-dense",
+          "tags": {
+            "Name": "Server security group"
+          }
+        },
+        "after": {
+          "id": "sg-dense",
+          "vpc_id": "vpc-dense",
+          "tags": {
+            "Name": "Server security group"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_subnet.secondary",
+      "mode": "managed",
+      "type": "aws_subnet",
+      "name": "secondary",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "id": "subnet-secondary",
+          "vpc_id": "vpc-dense",
+          "cidr_block": "10.30.2.0/24",
+          "availability_zone": "us-east-1a",
+          "tags": {
+            "Name": "secondary"
+          }
+        },
+        "after": {
+          "id": "subnet-secondary",
+          "vpc_id": "vpc-dense",
+          "cidr_block": "10.30.2.0/24",
+          "availability_zone": "us-east-1a",
+          "tags": {
+            "Name": "secondary"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_db_subnet_group.database",
+      "mode": "managed",
+      "type": "aws_db_subnet_group",
+      "name": "database",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "db-subnets",
+          "subnet_ids": [
+            "subnet-dense",
+            "subnet-secondary"
+          ]
+        }
+      }
+    },
+    {
+      "address": "aws_db_instance.orders",
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "orders",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "db-orders",
+          "db_subnet_group_name": "db-subnets",
+          "instance_class": "db.t4g.small",
+          "engine": "postgres",
+          "tags": {
+            "Name": "orders-db"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_rds_cluster.analytics",
+      "mode": "managed",
+      "type": "aws_rds_cluster",
+      "name": "analytics",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "db-analytics",
+          "db_subnet_group_name": "db-subnets",
+          "engine": "aurora-postgresql"
+        }
+      }
+    },
+    {
+      "address": "aws_rds_cluster_instance.analytics",
+      "mode": "managed",
+      "type": "aws_rds_cluster_instance",
+      "name": "analytics",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "db-analytics-instance",
+          "cluster_identifier": "db-analytics",
+          "instance_class": "db.serverless"
+        }
+      }
+    },
+    {
+      "address": "aws_ecs_service.api",
+      "mode": "managed",
+      "type": "aws_ecs_service",
+      "name": "api",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "service-api",
+          "launch_type": "FARGATE",
+          "network_configuration": [
+            {
+              "subnets": [
+                "subnet-dense",
+                "subnet-secondary"
+              ]
+            }
+          ],
+          "tags": {
+            "Name": "api-service"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_eks_fargate_profile.workers",
+      "mode": "managed",
+      "type": "aws_eks_fargate_profile",
+      "name": "workers",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "workers-profile",
+          "subnet_ids": [
+            "subnet-dense",
+            "subnet-secondary"
+          ]
+        }
+      }
+    },
+    {
+      "address": "aws_elasticache_subnet_group.cache",
+      "mode": "managed",
+      "type": "aws_elasticache_subnet_group",
+      "name": "cache",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "cache-subnets",
+          "subnet_ids": [
+            "subnet-dense",
+            "subnet-secondary"
+          ]
+        }
+      }
+    },
+    {
+      "address": "aws_elasticache_cluster.cache",
+      "mode": "managed",
+      "type": "aws_elasticache_cluster",
+      "name": "cache",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "cache-main",
+          "subnet_group_name": "cache-subnets",
+          "node_type": "cache.t4g.small",
+          "engine": "redis"
+        }
+      }
+    },
+    {
+      "address": "aws_lambda_function.worker",
+      "mode": "managed",
+      "type": "aws_lambda_function",
+      "name": "worker",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "function-worker",
+          "vpc_config": [
+            {
+              "subnet_ids": [
+                "subnet-dense"
+              ],
+              "security_group_ids": [
+                "sg-dense"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "address": "aws_efs_mount_target.files",
+      "mode": "managed",
+      "type": "aws_efs_mount_target",
+      "name": "files",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "mount-dense",
+          "subnet_id": "subnet-dense"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.app",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "app",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-app",
+          "subnet_id": "subnet-dense",
+          "instance_type": "t3.small"
+        }
+      }
+    },
+    {
+      "address": "aws_s3_bucket.outside",
+      "mode": "managed",
+      "type": "aws_s3_bucket",
+      "name": "outside",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "outside-bucket"
+        }
+      }
+    },
+    {
+      "address": "aws_lambda_function.outside",
+      "mode": "managed",
+      "type": "aws_lambda_function",
+      "name": "outside",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "function-outside"
+        }
+      }
+    },
+    {
+      "address": "aws_vpc.other",
+      "mode": "managed",
+      "type": "aws_vpc",
+      "name": "other",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "vpc-other",
+          "cidr_block": "10.40.0.0/16",
+          "tags": {
+            "Name": "Other VPC"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_subnet.other",
+      "mode": "managed",
+      "type": "aws_subnet",
+      "name": "other",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "id": "subnet-other",
+          "vpc_id": "vpc-other",
+          "cidr_block": "10.40.1.0/24",
+          "availability_zone": "us-east-1a",
+          "tags": {
+            "Name": "other"
+          }
+        },
+        "after": {
+          "id": "subnet-other",
+          "vpc_id": "vpc-other",
+          "cidr_block": "10.40.1.0/24",
+          "availability_zone": "us-east-1a",
+          "tags": {
+            "Name": "other"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_instance.other",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "other",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "id": "i-other",
+          "subnet_id": "subnet-other",
+          "instance_type": "t3.small"
+        }
+      }
+    }
+  ]
+}

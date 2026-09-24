@@ -211,7 +211,7 @@ test('route and attachment changes retain map context and inspectable diffs', as
     await expect(table).toBeVisible();
     await expect(page.locator('#shown')).toHaveText('9 changes · 11 context');
     await page.getByRole('button', { name: 'Restore view', exact: true }).click();
-    await expect(page.locator('.card[data-id="aws_lb_target_group.api"]')).toContainText('1 attached change');
+    await expect(page.locator('.card[data-id="aws_lb_target_group.api"]').first()).toContainText('1 attached change');
     await page.locator('.connection-changes > summary').click();
     await expect(page.locator('.connection-open')).toHaveCount(8);
     const removed = page.locator('.connection-open[data-connection="aws_route.removed"]');
@@ -245,6 +245,74 @@ test('route and attachment changes retain map context and inspectable diffs', as
     await page.getByRole('tab', { name: 'Plan', exact: true }).click();
     await expect(page.locator('#review-count')).toHaveText('9 of 20 resources');
     await expect(page.locator('.resource-open').filter({ hasText: 'aws_route_table.main' })).toHaveCount(0);
+  } finally {
+    await request.post('/__test/refresh');
+  }
+});
+
+test('dense subnet previews stay compact and expose all resources in natural order', async ({ page, request }, testInfo) => {
+  try {
+    await request.post('/__test/dense-vpc');
+    await expect(page.locator('.subnet-more')).toHaveText('View all 30 resources');
+    await expect(page.locator('[data-compact]')).toHaveCount(5);
+    const rows = page.locator('[data-inventory][data-id^="aws_instance."]');
+    await expect(rows).toHaveCount(30);
+    await expect(rows.locator('.n')).toHaveText(Array.from({length: 30}, (_, i) => `server-${String(i + 1).padStart(2, '0')}`));
+    expect((await page.locator('.subnet-group').boundingBox()).height).toBeLessThan(400);
+    await page.screenshot({path: testInfo.outputPath('dense-vpc.png')});
+    await page.getByRole('button', {name: 'View all 30 resources', exact: true}).click();
+    const subnet = page.getByRole('combobox', {name: 'Subnet filter for Demo VPC'});
+    await expect(subnet).toHaveValue('aws_subnet.servers');
+    await expect(subnet).toBeFocused();
+    const last = rows.filter({hasText: 'server-30'});
+    await last.locator('.card-main').click();
+    await expect(last.locator('.card-main')).toBeFocused();
+    await expect(page.locator('[data-compact][data-id="aws_instance.servers[29]"]')).toBeAttached();
+    await expect(last).toHaveClass(/pinned/);
+    await last.locator('.card-detail').click();
+    await expect(page.getByRole('dialog')).toContainText('t3.small');
+    await page.keyboard.press('Escape');
+    await expect(last.locator('.card-detail')).toBeFocused();
+    await last.locator('.card-detail').evaluate(el => el.dataset.beforeRefresh = 'true');
+    await request.post('/__test/dense-vpc');
+    await expect(page.locator('[data-before-refresh]')).toHaveCount(0);
+    await expect(last.locator('.card-detail')).toBeFocused();
+    await expect(subnet).toHaveValue('aws_subnet.servers');
+    const result = await new AxeBuilder({page}).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+    expect(result.violations).toEqual([]);
+    await page.setViewportSize({width: 390, height: 844});
+    await expect(rows).toHaveCount(30);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await page.screenshot({path: testInfo.outputPath('dense-vpc-mobile.png')});
+    await page.getByRole('checkbox', {name: 'Changes only'}).check();
+    await expect(page.locator('[data-inventory]')).toHaveCount(30);
+    await page.getByRole('tab', {name: 'Plan', exact: true}).click();
+    await expect(page.locator('#review-count')).toHaveText('30 of 35 resources');
+  } finally {
+    await request.post('/__test/refresh');
+  }
+});
+
+test('mixed VPC inventory includes shared databases and container services only once', async ({ page, request }, testInfo) => {
+  try {
+    await request.post('/__test/mixed-vpc');
+    await expect(page.locator('#meta')).toContainText('22 resources');
+    const main = page.locator('.vpc-inventory').filter({has: page.getByRole('combobox', {name: 'Subnet filter for Demo VPC'})});
+    for (const id of ['aws_db_instance.orders', 'aws_rds_cluster_instance.analytics', 'aws_ecs_service.api', 'aws_eks_fargate_profile.workers', 'aws_elasticache_cluster.cache']) {
+      const row = main.locator(`[data-inventory][data-id="${id}"]`);
+      await expect(row).toHaveCount(1);
+      await expect(row).toContainText('secondary, servers');
+    }
+    await expect(main.locator('[data-id="aws_ecs_service.api"]')).toContainText('FARGATE');
+    await expect(main.locator('[data-id="aws_db_instance.orders"]')).toContainText('db.t4g.small');
+    await expect(main.locator('[data-id="aws_instance.other"]')).toHaveCount(0);
+    await expect(main.locator('[data-id="aws_lambda_function.outside"]')).toHaveCount(0);
+    await page.getByRole('combobox', {name: 'Subnet filter for Demo VPC'}).selectOption('aws_subnet.secondary');
+    await expect(main.locator('[data-id="aws_instance.app"]')).toHaveCount(0);
+    await expect(main.locator('[data-id="aws_db_instance.orders"]')).toHaveCount(1);
+    await page.screenshot({path: testInfo.outputPath('mixed-vpc.png')});
+    const result = await new AxeBuilder({page}).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(result.violations).toEqual([]);
   } finally {
     await request.post('/__test/refresh');
   }

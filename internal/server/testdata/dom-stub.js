@@ -88,12 +88,13 @@ var __cards = [];
 
 function __indexCards(html) {
   __cards = [];
-  var re = /<div class="card ([a-z]+)"[^>]*data-id="([^"]*)" data-ws="([^"]*)"/g;
+  var re = /<(?:div|tr) class="card ([a-z]+)"[^>]*data-id="([^"]*)" data-ws="([^"]*)"[^>]*>/g;
   var m;
   while ((m = re.exec(html)) !== null) {
     var el = __fakeEl('card:' + m[2], 'div');
     el.dataset.id = m[2].replace(/&quot;/g, '"');
     el.dataset.ws = m[3];
+    if (m[0].includes('data-inventory="true"')) el.dataset.inventory = 'true';
     el._main = __fakeEl('main:' + m[2], 'button');
     el._detail = __fakeEl('detail:' + m[2], 'button');
     var i = __cards.length;

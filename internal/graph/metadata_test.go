@@ -88,3 +88,19 @@ func TestRouteMetadataKeepsDeletedAndNonIPv4Destinations(t *testing.T) {
 		}
 	}
 }
+
+func TestVpcInventoryMetadataRespectsSensitivity(t *testing.T) {
+	for _, key := range []string{"instance_class", "node_type", "launch_type", "engine"} {
+		t.Run(key, func(t *testing.T) {
+			change := &tfjson.Change{After: map[string]interface{}{key: "display-value"}}
+			rc := &tfjson.ResourceChange{Type: "aws_db_instance", Change: change}
+			if got := displayMeta(rc, nil); got[key] != "display-value" {
+				t.Fatalf("missing inventory metadata: %v", got)
+			}
+			change.AfterSensitive = map[string]interface{}{key: true}
+			if got := displayMeta(rc, nil); got[key] != "" {
+				t.Fatalf("sensitive inventory metadata leaked: %v", got)
+			}
+		})
+	}
+}
