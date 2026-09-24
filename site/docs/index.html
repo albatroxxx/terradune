@@ -9,12 +9,12 @@
   <meta property="og:title" content="Install Terradune with Go">
   <meta property="og:description" content="The installation, credentials, and compatibility guide for Terradune.">
   <meta property="og:type" content="website"><meta property="og:url" content="https://albatroxxx.github.io/terradune/docs/">
-  <meta property="og:image" content="https://albatroxxx.github.io/terradune/assets/resource-map-v1.0.3.png"><meta name="twitter:card" content="summary_large_image">
+  <meta property="og:image" content="https://albatroxxx.github.io/terradune/assets/resource-map-v1.0.4.jpg"><meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="../assets/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/site.css"><script src="../assets/site.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
-  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">Terradune</a><nav aria-label="Main"><a href="./" aria-current="page">Get started</a><a href="../releases/">v1.0.3</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
+  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">Terradune</a><nav aria-label="Main"><a href="./" aria-current="page">Get started</a><a href="../releases/">v1.0.4</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
   <main id="main" class="docs-layout"><nav class="docs-nav" aria-label="On this page"><a href="#install-go">Install Go</a><a href="#go">Install Terradune</a><a href="#aws">AWS credentials</a><a href="#review">Review a plan</a><a href="#update">Update or remove</a><a href="#compatibility">Compatibility</a><a href="#security">Security</a></nav><article class="prose">
     <p class="eyebrow">GET STARTED</p><h1>Install Terradune</h1><p>Install locally with Go and use the Terraform or OpenTofu CLI on your machine. Go is the sole supported installation method.</p>
     <h2 id="install-go">1. Install Go</h2><p>Terradune requires <strong>Go 1.27.1 or newer</strong>. Choose your operating system and architecture at <a href="https://go.dev/dl/">go.dev/dl</a>.</p>
@@ -23,7 +23,7 @@
     <p>Verify the reported version is at least 1.27.1. Install <a href="https://developer.hashicorp.com/terraform/install">Terraform</a> or <a href="https://opentofu.org/docs/intro/install/">OpenTofu</a> separately and make sure its command is on PATH.</p>
     <h2 id="go">2. Install Terradune</h2>
     <div class="code-block"><button type="button" class="copy" aria-label="Copy Go installation command">Copy</button><pre><code>go install github.com/albatroxxx/terradune@latest</code></pre></div>
-    <p>Use <code>@v1.0.3</code> instead of <code>@latest</code> to pin this release. Add Go's executable directory to PATH. For the current macOS/Linux terminal:</p>
+    <p>Use <code>@v1.0.4</code> instead of <code>@latest</code> to pin this release. Add Go's executable directory to PATH. For the current macOS/Linux terminal:</p>
     <div class="code-block"><button type="button" class="copy" aria-label="Copy macOS and Linux PATH setup">Copy</button><pre><code>go_bin="$(go env GOBIN)"
 export PATH="${go_bin:-$(go env GOPATH)/bin}:$PATH"
 terradune -version</code></pre></div>
