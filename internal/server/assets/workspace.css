@@ -1,4 +1,11 @@
 /* Compact workspace chrome; the map keeps the available height. */
+.change-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
+.change-table th, .change-table td { padding: 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.change-table thead { background: var(--sunken); }
+.change-table tbody th { font-family: var(--mono); font-weight: 400; }
+.change-table td { font-family: var(--mono); }
+.change-table pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.change-summary { font-size: 12px; }
 header { padding: 6px 16px; gap: 10px; min-height: 48px; z-index: 6; }
 .brand { gap: 8px; margin-right: 8px; }
 .brand img { width: 28px; height: 28px; }

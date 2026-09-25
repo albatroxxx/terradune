@@ -255,6 +255,22 @@ check('ribbons stay hidden until something is hovered', function () {
   print('       (' + drawn.length + ' directed ribbons)');
 });
 
+check('lifecycle changes expose labelled before and after values', function () {
+  var update = changeRows({status: 'update', before: {size: 10, same: {a: 1, b: 2}, gone: 'old'}, after: {size: 20, same: {b: 2, a: 1}}});
+  for (var text of ['Before', 'After', '>10<', '>20<', 'Removed']) if (!update.includes(text)) throw new Error('missing ' + text);
+  if (update.includes('>same<')) throw new Error('unchanged object shown as changed');
+  var create = changeRows({status: 'create', after: {name: '<unsafe>', password: '(sensitive value)'}, unknown: ['id']});
+  for (var text of ['Not present', 'Known after apply', '&lt;unsafe&gt;', '(sensitive value)']) if (!create.includes(text)) throw new Error('missing creation value ' + text);
+  var destroy = changeRows({status: 'destroy', before: {name: 'old'}, unknown: ['id']});
+  if (!destroy.includes('Removed') || destroy.includes('Known after apply')) throw new Error('invalid deletion diff');
+  var replace = changeRows({status: 'replace', before: {name: 'same'}, after: {name: 'same'}});
+  if (!replace.includes('destroy and recreate') || !replace.includes('No visible attribute differences')) throw new Error('replacement without attribute changes hidden');
+  var nested = changeRows({status: 'update', before: {route: [{gateway_id: 'old'}]}, after: {route: [{gateway_id: 'new'}]}});
+  if (!nested.includes('old') || !nested.includes('new')) throw new Error('nested route diff lost');
+  var tags = changeRows({status: 'update', before: {tags_all: {Name: 'old'}}, after: {tags_all: {Name: 'new'}}});
+  if (!tags.includes('tags_all')) throw new Error('provider tag changes hidden');
+});
+
 check('hovering reveals the traced path only', function () {
   renderMap(STATE);
   hoverApi.hover('aws_subnet.public[0]');

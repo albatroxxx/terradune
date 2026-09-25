@@ -1570,6 +1570,33 @@ function fmtValue(v) {
   return esc(String(v));
 }
 
+function equalValues(a, b) {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every(k => Object.hasOwn(b, k) && equalValues(a[k], b[k]));
+}
+
+function changeRows(resource) {
+  if (!CHANGED.has(resource.status)) return '<p class="none">No direct resource changes.</p>';
+  const before = resource.status === 'create' ? {} : resource.before || {};
+  const after = resource.status === 'destroy' ? {} : resource.after || {};
+  const unknown = new Set(resource.status === 'destroy' ? [] : resource.unknown || []);
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after), ...unknown])].sort();
+  const rows = keys.filter(k => unknown.has(k) || !equalValues(before[k], after[k])).map(k => {
+    const previous = resource.status === 'create' ? '<span class="none">Not present</span>' :
+      Object.hasOwn(before, k) ? fmtValue(before[k]) : '<span class="none">Not set</span>';
+    const next = resource.status === 'destroy' ? '<span class="none">Removed</span>' : unknown.has(k)
+      ? '<span class="unk">Known after apply</span>' + (after[k] != null ? `<div>${fmtValue(after[k])}</div>` : '')
+      : Object.hasOwn(after, k) ? fmtValue(after[k]) : '<span class="none">Removed</span>';
+    return `<tr><th scope="row">${esc(k)}</th><td>${previous}</td><td>${next}</td></tr>`;
+  }).join('');
+  const replacement = resource.status === 'replace' ? '<p class="change-summary">Terraform will destroy and recreate this resource.</p>' : '';
+  return replacement + (rows ? `<table class="change-table"><caption class="sr-only">Planned attribute changes</caption>
+    <thead><tr><th scope="col">Attribute</th><th scope="col">Before</th><th scope="col">After</th></tr></thead>
+    <tbody>${rows}</tbody></table>` : '<p class="none">No visible attribute differences. The action may involve hidden values or replacement without a value change.</p>');
+}
+
 // One row per attribute: unknown values read as Terraform prints them, and a
 // changed value shows what it was next to what it becomes.
 function attrRows(after, before, unknown) {
@@ -1620,6 +1647,7 @@ function relatedHTML(r) {
       <span class="pill ${esc(r.status)}" style="margin-left:auto">${esc(r.status || '')}</span>
     </summary>
     <div class="inner">
+      ${CHANGED.has(r.status) ? `<h4>What changes</h4>${changeRows(r)}` : ''}
       ${summarize(r.type, values, r.unknown)
         ? `<div class="sum" style="margin-bottom:6px">${esc(summarize(r.type, values, r.unknown))}</div>` : ''}
       ${attrRows(values, r.status === 'update' || r.status === 'replace' ? r.before : null, r.unknown)}
@@ -1668,6 +1696,7 @@ async function openDetail(wsName, address, opener) {
   // "Attached" is what points at this resource: a route table's routes and
   // associations, an instance's volume and target-group attachments.
   $('dr-body').innerHTML =
+    sec('What changes', changeRows(d)) +
     sec(`Attached <span style="color:var(--faint)">(${(d.attached || []).length})</span>`, rels(d.attached)) +
     sec('Configuration', attrRows(d.status === 'destroy' ? d.before : d.after,
       d.status === 'update' || d.status === 'replace' ? d.before : null, d.unknown)) +

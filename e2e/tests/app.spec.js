@@ -46,6 +46,8 @@ test('plan filters and resource details work with the keyboard', async ({ page }
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Configuration', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'What changes', exact: true }).first()).toBeVisible();
+  await expect(page.locator('#dr-body > .change-table').getByRole('columnheader')).toHaveText(['Attribute', 'Before', 'After']);
   await expect(page.getByRole('button', { name: 'Close details' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(resource).toBeFocused();
