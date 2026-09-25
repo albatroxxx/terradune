@@ -28,9 +28,10 @@ test('tabs follow keyboard order and expand without losing the current view', as
   await graphReady(page);
   const before = await page.locator('#graph').boundingBox();
   await page.getByRole('button', { name: 'Expand view', exact: true }).click();
-  await expect(page.locator('header')).toBeHidden();
+  await expect(page.locator('header .brand')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Restore view', exact: true })).toBeVisible();
   const after = await page.locator('#graph').boundingBox();
-  expect(after.height).toBeGreaterThan(before.height + 100);
+  expect(after.height).toBeGreaterThan(before.height + 30);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Expand view', exact: true })).toBeFocused();
   await expect(page.getByRole('tab', { name: 'Graph', exact: true })).toHaveAttribute('aria-selected', 'true');
@@ -93,6 +94,47 @@ test('legend and pinned map path unwind one layer per Escape', async ({ page }) 
   await expect(page.locator('#ribbons path').first()).toBeAttached();
   await page.keyboard.press('Escape');
   await expect(page.locator('#pinned')).toBeHidden();
+});
+
+test('single click preserves cards and double click keeps dependency sections', async ({page}, testInfo) => {
+  const cards = page.locator('#map .card');
+  const count = await cards.count();
+  const pin = page.getByRole('button', {name: 'Pin path: platform-public-us-east-1a, Subnet, existing', exact: true});
+  await pin.click();
+  await expect(cards).toHaveCount(count);
+  await expect(page.locator('#map')).not.toHaveClass(/focused/);
+  await expect(page.locator('#ribbons path').first()).toHaveAttribute('mask', 'url(#map-card-mask)');
+  expect(await page.locator('#map-card-mask rect[fill="black"]').count()).toBeGreaterThan(0);
+  await page.screenshot({path: testInfo.outputPath('single-click-dependencies.png')});
+  await pin.dblclick();
+  await expect(page.locator('#map')).toHaveClass(/focused/);
+  expect(await cards.count()).toBeLessThan(count);
+  await expect(page.locator('.vpc-panel').first()).toBeVisible();
+  await expect(page.locator('.az').first()).toBeVisible();
+  await expect(pin).toBeFocused();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await page.screenshot({path: testInfo.outputPath('double-click-dependencies.png')});
+  const result = await new AxeBuilder({page}).withTags(['wcag2a', 'wcag2aa']).analyze();
+  expect(result.violations).toEqual([]);
+  await page.keyboard.press('Escape');
+  await expect(cards).toHaveCount(count);
+  await expect(pin).toBeFocused();
+  await pin.press('Enter');
+  await page.getByRole('button', {name: 'Focus path', exact: true}).press('Enter');
+  await expect(page.locator('#map')).toHaveClass(/focused/);
+  await page.keyboard.press('Escape');
+  await expect(cards).toHaveCount(count);
+});
+
+test('compact filters can collapse and return through the search shortcut', async ({page}) => {
+  expect((await page.locator('#map').boundingBox()).y).toBeLessThan(120);
+  await page.getByRole('button', {name: 'Hide filters', exact: true}).click();
+  await expect(page.locator('#toolbar')).toBeHidden();
+  await page.keyboard.press('/');
+  await expect(page.getByRole('searchbox', {name: 'Search resources'})).toBeFocused();
+  await expect(page.locator('#toolbar')).toBeVisible();
+  await page.getByRole('searchbox', {name: 'Search resources'}).fill('aws_instance');
+  await expect(page.locator('#filter-count')).toHaveText('1');
 });
 
 test('focused graph has real edges and keyboard-operable resources', async ({ page }) => {
@@ -254,7 +296,7 @@ test('dense subnet previews stay compact and expose all resources in natural ord
   try {
     await request.post('/__test/dense-vpc');
     await expect(page.locator('.subnet-more')).toHaveText('View all 30 resources');
-    await expect(page.locator('[data-compact]')).toHaveCount(5);
+    await expect(page.locator('[data-compact]')).toHaveCount(3);
     const rows = page.locator('[data-inventory][data-id^="aws_instance."]');
     await expect(rows).toHaveCount(30);
     await expect(rows.locator('.n')).toHaveText(Array.from({length: 30}, (_, i) => `server-${String(i + 1).padStart(2, '0')}`));
@@ -267,7 +309,7 @@ test('dense subnet previews stay compact and expose all resources in natural ord
     const last = rows.filter({hasText: 'server-30'});
     await last.locator('.card-main').click();
     await expect(last.locator('.card-main')).toBeFocused();
-    await expect(page.locator('[data-compact][data-id="aws_instance.servers[29]"]')).toBeAttached();
+    await expect(page.locator('#map')).not.toHaveClass(/focused/);
     await expect(last).toHaveClass(/pinned/);
     await last.locator('.card-detail').click();
     await expect(page.getByRole('dialog')).toContainText('t3.small');
@@ -301,7 +343,7 @@ test('mixed VPC inventory includes shared databases and container services only 
     for (const id of ['aws_db_instance.orders', 'aws_rds_cluster_instance.analytics', 'aws_ecs_service.api', 'aws_eks_fargate_profile.workers', 'aws_elasticache_cluster.cache']) {
       const row = main.locator(`[data-inventory][data-id="${id}"]`);
       await expect(row).toHaveCount(1);
-      await expect(row).toContainText('secondary, servers');
+      await expect(row.locator('.card-main')).toBeVisible();
     }
     await expect(main.locator('[data-id="aws_ecs_service.api"]')).toContainText('FARGATE');
     await expect(main.locator('[data-id="aws_db_instance.orders"]')).toContainText('db.t4g.small');

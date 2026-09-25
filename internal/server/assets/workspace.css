@@ -1,0 +1,60 @@
+/* Compact workspace chrome; the map keeps the available height. */
+header { padding: 6px 16px; gap: 10px; min-height: 48px; z-index: 6; }
+.brand { gap: 8px; margin-right: 8px; }
+.brand img { width: 28px; height: 28px; }
+header h1 { font-size: 17px; }
+.tabs { gap: 3px; }
+.tabs button { padding: 5px 10px; min-height: 34px; }
+#view-tools { padding: 0; min-height: 34px; border: 0; margin-left: auto; min-width: 0; gap: 6px; }
+#view-name { display: none; }
+#view-actions { gap: 6px; }
+#view-tools #pinned { max-width: 180px; }
+#meta { margin-left: auto; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#toggle-filters { display: grid; place-items: center; position: relative; }
+#filter-count { position: absolute; top: -3px; right: -3px; min-width: 14px; padding: 0 2px; border-radius: 4px;
+  background: var(--accent); color: white; font: 10px/14px var(--mono); }
+#filter-count[hidden], #toolbar[hidden] { display: none; }
+#toolbar { padding: 6px 16px; gap: 8px; }
+#q { width: 210px; min-height: 34px; }
+#workspace-filter { max-width: 160px; min-height: 34px; padding: 5px 8px; font-size: 12px; }
+.check-control { font-size: 12px; }
+#chips { order: 0; width: auto; border: 0; margin: 0; padding: 0; gap: 3px; }
+.chip, .chip:first-child { flex: none; flex-direction: row; min-height: 32px; gap: 5px; padding: 4px 8px;
+  border: 1px solid var(--line); border-radius: 4px; font-size: 11px; }
+.chip b { font-size: 12px; }
+#toolbar .txt { font-size: 10px; }
+#clear { min-height: 32px; }
+#map { padding-top: 12px; }
+.ws-head { flex-wrap: wrap; gap: 6px 10px; }
+.expanded-view > header { display: flex; }
+.expanded-view > header > :not(#view-tools), .expanded-view #toggle-filters { display: none; }
+.expanded-view #view-tools { width: 100%; }
+.expanded-view #view-name { display: block; }
+#map.focused #mapbody { animation: focus-enter 180ms ease-out; }
+#focus-path { min-height: 34px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); font: inherit; font-size: 11px; cursor: pointer; }
+#focus-path[hidden] { display: none; }
+#focus-path[aria-pressed="true"] { background: var(--accent-light); }
+#release-pin { font-size: 22px; }
+@keyframes focus-enter { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 1100px) {
+  #meta { display: none; }
+  .brand { margin-right: 0; }
+  #toolbar .txt { display: none; }
+}
+@media (max-width: 720px) {
+  header { padding: 6px 12px; gap: 5px 8px; }
+  header h1 { font-size: 17px; }
+  .tabs { order: 3; width: 100%; gap: 4px; }
+  .tabs button { min-height: 34px; }
+  #view-tools { flex-wrap: nowrap; }
+  #view-tools #pinned { display: none; }
+  #toolbar { padding: 6px 12px; gap: 6px; }
+  #q { width: 100%; font-size: 16px; }
+  #workspace-filter { flex: 1; max-width: none; }
+  #chips { width: 100%; flex-wrap: wrap; gap: 4px; overflow: visible; }
+  .chip, .chip:first-child { flex: 1; padding-inline: 5px; font-size: 10px; }
+  #legend .items { right: -40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #map.focused #mapbody { animation: none; }
+}

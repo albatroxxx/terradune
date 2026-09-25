@@ -294,6 +294,7 @@
 </style>
 <link rel="stylesheet" href="/assets/review.css">
 <link rel="stylesheet" href="/assets/map-inventory.css">
+<link rel="stylesheet" href="/assets/workspace.css">
 </head>
 <body>
 <header>
@@ -305,22 +306,16 @@
     <button id="tab-graph" type="button" role="tab" aria-selected="false" aria-controls="graph" tabindex="-1">Graph</button>
   </div>
   <span id="meta" role="status"></span>
-</header>
-<div id="toolbar">
-  <label class="sr-only" for="q">Search resources</label>
-  <input id="q" type="search" placeholder="Search resources…" autocomplete="off">
-  <select id="workspace-filter" aria-label="Workspace"><option value="">All workspaces</option></select>
-  <label class="check-control"><input id="changes-only" type="checkbox">Changes only</label>
-  <span class="sep"></span>
-  <span id="chips"></span>
-  <button id="clear" type="button" hidden>Clear filters</button>
-  <span class="txt" id="shown"></span>
-</div>
 <div id="view-tools">
   <strong id="view-name">Resource Map</strong>
   <span id="pinned" role="status" hidden></span>
   <button id="release-pin" class="icon-button" type="button" aria-label="Release pinned path" title="Release pinned path" hidden>&times;</button>
+  <button id="focus-path" type="button" aria-pressed="false" hidden>Focus path</button>
   <div id="view-actions">
+    <button id="toggle-filters" class="icon-button" type="button" aria-expanded="true" aria-controls="toolbar" aria-label="Hide filters" title="Hide filters">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5H3M12 19H3M14 3v4M16 17v4M21 12h-9M21 19h-5M21 5h-7M8 10v4M8 12H3"/></svg>
+      <span id="filter-count" hidden></span>
+    </button>
     <div id="legend" class="closed">
       <button id="legend-btn" type="button" aria-expanded="false" aria-controls="legend-items">Legend</button>
       <div class="items" id="legend-items">
@@ -338,6 +333,17 @@
     </div>
     <button id="expand-view" class="icon-button" type="button" aria-pressed="false" aria-label="Expand view" title="Expand view">&#9974;</button>
   </div>
+</div>
+</header>
+<div id="toolbar">
+  <label class="sr-only" for="q">Search resources</label>
+  <input id="q" type="search" placeholder="Search resources…" autocomplete="off">
+  <select id="workspace-filter" aria-label="Workspace"><option value="">All workspaces</option></select>
+  <label class="check-control"><input id="changes-only" type="checkbox">Changes only</label>
+  <span class="sep"></span>
+  <span id="chips"></span>
+  <button id="clear" type="button" hidden>Clear filters</button>
+  <span class="txt" id="shown"></span>
 </div>
 <section id="review" role="tabpanel" aria-labelledby="tab-review">
   <aside class="service-rail" aria-label="Resource types"><h2>Resource types</h2><nav id="service-nav" aria-label="Filter by resource type"></nav></aside>
@@ -952,13 +958,16 @@ function renderChips(state) {
     });
   }
   $('clear').hidden = !filterActive() && !reviewService && !changesOnly && !reviewWorkspace;
+  const active = filter.statuses.size + [filter.text, reviewService, changesOnly, reviewWorkspace].filter(Boolean).length;
+  $('filter-count').textContent = active;
+  $('filter-count').hidden = !active;
   restoreFocus();
 }
 
 let RENDER_WS = ''; // workspace whose cards are being emitted
 let RENDER_ATTACHED = new Map();
 
-function cardHTML(n, detail, nested) {
+function cardHTML(n, detail, nested, inventory = false) {
   const nice = displayName(n);
   const changes = RENDER_ATTACHED.get(n.id) || [];
   const changeNote = changes.length ? `${changes.length} attached change${changes.length === 1 ? '' : 's'}` : '';
@@ -966,9 +975,9 @@ function cardHTML(n, detail, nested) {
     : (n.meta?.cidr || n.meta?.spec || n.meta?.az || '');
   // Keep the resource name visible when the title came from somewhere else,
   // so two cards are never indistinguishable.
-  if (nice !== shortRef(n)) det = det ? det + ' · ' + shortRef(n) : shortRef(n);
+  if (!inventory && n.type !== 'aws_subnet' && nice !== shortRef(n)) det = det ? det + ' · ' + shortRef(n) : shortRef(n);
   return `<div class="card ${n.status}" data-id="${esc(n.id)}" data-ws="${esc(RENDER_WS)}"
-      title="${esc(n.id)}">
+      ${inventory ? 'data-inventory="true"' : ''} title="${esc(n.id)}">
     <button type="button" class="card-main" aria-pressed="false"
       aria-label="${esc(`Pin path: ${nice}, ${label(n.type)}, ${n.status}${changeNote ? ', ' + changeNote : ''}`)}">
       <span class="ico">${iconSVG(n.type)}</span>
@@ -1071,7 +1080,7 @@ function panelHTML(p, m, vis) {
     byAz.get(az).push(s);
   }
   const subnetCol = [...byAz.entries()].sort().map(([az, subs]) => `
-    <div class="az"><h4>${esc(az)}</h4>
+    <div class="az"><h4>${esc(az)}</h4><div class="subnet-list">
       ${subs.map(s => {
         const inside = keep(p.contents.get(s.id) || []);
         const nested = inside.length ? `<div class="contents"><span class="subnet-count">${inside.length} resource${inside.length === 1 ? '' : 's'}</span>
@@ -1084,7 +1093,7 @@ function panelHTML(p, m, vis) {
                               ? (m.subnetPublic.get(s.id) ? 'public' : 'private') : null,
                             s.meta?.cidr].filter(Boolean).join(' · ')) + nested + '</div>';
       }).join('')}
-    </div>`).join('') || '<div class="empty">none</div>';
+    </div></div>`).join('') || '<div class="empty">none</div>';
 
   const col = (title, items) => {
     const types = new Set(items.map(n => n.type));
@@ -1127,22 +1136,33 @@ function summaryHTML(nodes) {
 const CLI_NAMES = {terraform: 'Terraform', tofu: 'OpenTofu'};
 const cliName = ws => CLI_NAMES[ws.cli] || 'Terraform';
 
+let mapState = null, overviewScroll = null, overviewFocus = null, focusedDependencies = false;
 function renderMap(state) {
+  mapState = state;
   const restoreFocus = preserveFocus();
   const body = $('mapbody');
   const openConnections = new Set([...body.querySelectorAll('.connection-changes[open]')].map(el => el.dataset.workspace));
-  const inventoryScroll = new Map([...body.querySelectorAll('.vpc-inventory')].map(el => {
+  for (const el of body.querySelectorAll('.vpc-inventory')) {
     const scroll = el.querySelector('.inventory-scroll');
-    return [el.dataset.inventoryKey, [scroll.scrollLeft, scroll.scrollTop]];
-  }));
+    mapInventoryScroll.set(`${$('map').classList.contains('focused')}:${el.dataset.inventoryKey}`, [scroll.scrollLeft, scroll.scrollTop]);
+  }
   const maps = [];
   let shown = 0, changedShown = 0, total = 0;
+  if (focusedDependencies) {
+    const ws = (state.workspaces || []).find(w => w.name === pinnedWorkspace);
+    if (!ws || (reviewWorkspace && reviewWorkspace !== ws.name) || !visibleIn(ws, buildMap(ws)).has(pinnedId)) {
+      focusedDependencies = false; pinnedId = null; pinnedWorkspace = null;
+      overviewScroll = null; overviewFocus = null;
+    }
+  }
 
-  body.innerHTML = (state.workspaces || []).filter(ws => !reviewWorkspace || ws.name === reviewWorkspace).map(ws => {
+  body.innerHTML = (state.workspaces || []).filter(ws => (!reviewWorkspace || ws.name === reviewWorkspace) &&
+    (!focusedDependencies || ws.name === pinnedWorkspace)).map(ws => {
     RENDER_WS = ws.name;
     const m = buildMap(ws);
     maps.push(m);
-    const vis = visibleIn(ws, m);
+    const visible = visibleIn(ws, m);
+    const vis = focusedDependencies ? dependencyVisibility(m, visible, pinnedId) : visible;
     RENDER_ATTACHED = new Map([...m.attachedChanges].map(([id, kids]) => [id, kids.filter(n => vis.has(n.id))]));
     total += (ws.nodes || []).length;
     shown += vis.size;
@@ -1192,9 +1212,10 @@ function renderMap(state) {
     return `<section class="ws">${head}${err}${inner}</section>`;
   }).join('');
 
+  $('map').classList.toggle('focused', focusedDependencies);
   RENDER_ATTACHED = new Map();
   for (const section of body.querySelectorAll('.vpc-inventory')) {
-    const position = inventoryScroll.get(section.dataset.inventoryKey);
+    const position = mapInventoryScroll.get(`${focusedDependencies}:${section.dataset.inventoryKey}`);
     if (position) {
       const scroll = section.querySelector('.inventory-scroll');
       [scroll.scrollLeft, scroll.scrollTop] = position;
@@ -1202,6 +1223,7 @@ function renderMap(state) {
   }
   $('shown').textContent = changesOnly ? `${changedShown} changes · ${shown - changedShown} context` :
     filterActive() || reviewService ? `${shown} of ${total} shown` : `${total} resources`;
+  if (focusedDependencies) $('shown').textContent = `${shown} in dependency view · ${total} total`;
   for (const button of body.querySelectorAll('.connection-open')) {
     button.addEventListener('click', () => {
       const [workspace, address] = JSON.parse(button.dataset.resource);
@@ -1211,6 +1233,10 @@ function renderMap(state) {
   drawRibbons(maps);
   wireHover(maps);
   wireMapInventory();
+  for (const region of body.querySelectorAll('.inventory-scroll')) {
+    region.addEventListener('scroll', () => { drawRibbons(maps); hoverApi?.refresh(); }, {passive: true});
+  }
+  renderPinnedNote();
   restoreFocus();
 }
 
@@ -1275,11 +1301,34 @@ function drawRibbons(maps) {
   svg.setAttribute('height', scroll.scrollHeight);
   const rectOf = el => {
     const r = el.querySelector('.card-main').getBoundingClientRect();
+    const clip = el.closest?.('.inventory-scroll')?.getBoundingClientRect();
+    const top = clip ? Math.max(r.top, clip.top) : r.top;
+    const bottom = clip ? Math.min(r.bottom, clip.bottom) : r.bottom;
+    if (bottom <= top) return null;
     return { x: r.left - base.left + scroll.scrollLeft,
-             y: r.top - base.top + scroll.scrollTop, w: r.width, h: r.height };
+             y: top - base.top + scroll.scrollTop, w: r.width, h: bottom - top };
   };
-  const topologyCards = [...scroll.querySelectorAll('.card')].filter(el => !el.dataset.inventory);
-  const obstacles = topologyCards.map(rectOf);
+  const allCards = [...scroll.querySelectorAll('.card')];
+  const topologyCards = allCards.filter(el => !el.dataset.inventory);
+  const obstacles = topologyCards.map(rectOf).filter(Boolean);
+  // Crossings remain one association, never a false edge to an intervening card.
+  const mask = document.createElementNS(svgNS, 'mask');
+  mask.setAttribute('id', 'map-card-mask');
+  mask.setAttribute('maskUnits', 'userSpaceOnUse');
+  mask.setAttribute('x', '0'); mask.setAttribute('y', '0');
+  mask.setAttribute('width', scroll.scrollWidth); mask.setAttribute('height', scroll.scrollHeight);
+  const cutout = (r, fill) => {
+    const rect = document.createElementNS(svgNS, 'rect');
+    for (const [key, value] of Object.entries({x: r.x, y: r.y, width: r.w, height: r.h, fill})) rect.setAttribute(key, value);
+    mask.appendChild(rect);
+  };
+  cutout({x: 0, y: 0, w: scroll.scrollWidth, h: scroll.scrollHeight}, 'white');
+  for (const card of allCards) {
+    const r = rectOf(card);
+    if (!r) continue;
+    cutout({x: r.x + 1, y: r.y + 1, w: Math.max(0, r.w - 2), h: Math.max(0, r.h - 2)}, 'black');
+  }
+  svg.appendChild(mask);
   // An instance appears both in the subnet holding it and in the targets of
   // the load balancer reaching it. A link belonging to one panel has to find
   // the copy in that panel, or every line would run to whichever was drawn
@@ -1289,7 +1338,8 @@ function drawRibbons(maps) {
     const within = panel
       ? scroll.querySelector(`[data-panel="${CSS.escape(panel)}"] ${selector}`)
       : null;
-    const el = within || topologyCards.find(c => c.dataset.ws === workspace && c.dataset.id === id);
+    const el = within || topologyCards.find(c => c.dataset.ws === workspace && c.dataset.id === id) ||
+      allCards.find(c => c.dataset.ws === workspace && c.dataset.id === id);
     if (!el) return null;
     return rectOf(el);
   };
@@ -1300,6 +1350,7 @@ function drawRibbons(maps) {
       const p = document.createElementNS(svgNS, 'path');
       p.setAttribute('d', ribbonRoute(A, B, obstacles));
       p.setAttribute('fill', 'none');
+      p.setAttribute('mask', 'url(#map-card-mask)');
       const kind = indirect ? 'indirect' : 'direct';
       p.setAttribute('class', `connection ${kind}`);
       p.setAttribute('stroke-width', '2');
@@ -1381,6 +1432,8 @@ function renderPinnedNote() {
   const visible = !!pinnedId && tab === 'map';
   el.hidden = !visible;
   $('release-pin').hidden = !visible;
+  $('focus-path').hidden = !visible;
+  $('focus-path').setAttribute('aria-pressed', String(focusedDependencies));
   if (!visible) { el.textContent = ''; return; }
   const n = nodeById(pinnedId, pinnedWorkspace);
   el.hidden = false;
@@ -1390,12 +1443,12 @@ function renderPinnedNote() {
 function wireHover(maps) {
   const scroll = $('map');
   const cards = [...scroll.querySelectorAll('.card')];
-  const paths = [...$('ribbons').querySelectorAll('path')];
+  const paths = () => [...$('ribbons').querySelectorAll('path')];
   const adjByWorkspace = new Map(maps.map(m => [m.workspace, adjacencyOf(m.links)]));
   const workspaceFor = (id, workspace) => workspace ?? cards.find(c => c.dataset.id === id)?.dataset.ws;
   const resetPaths = () => {
     cards.forEach(c => c.classList.remove('dim', 'hi'));
-    paths.forEach(p => p.setAttribute('opacity', '0'));
+    paths().forEach(p => p.setAttribute('opacity', '0'));
   };
   const applyPath = (id, workspace) => {
     resetPaths();
@@ -1407,7 +1460,7 @@ function wireHover(maps) {
       c.classList.toggle('dim', !on);
       c.classList.toggle('hi', on);
     });
-    paths.forEach(p => {
+    paths().forEach(p => {
       p.setAttribute('opacity',
         p.dataset.ws === workspace && edges.has(p.dataset.from + ' ' + p.dataset.to) ? '1' : '0');
     });
@@ -1418,7 +1471,9 @@ function wireHover(maps) {
   const hover = (id, workspace) => { if (!pinnedId) applyPath(id, workspaceFor(id, workspace)); };
   const clear = () => { if (!pinnedId) resetPaths(); };
 
-  const setPinned = (id, workspace) => {
+  const setPinned = (id, workspace, redraw = true) => {
+    const leavingFocus = focusedDependencies && !id;
+    if (leavingFocus) focusedDependencies = false;
     pinnedId = id;
     pinnedWorkspace = id ? workspaceFor(id, workspace) : null;
     cards.forEach(c => {
@@ -1428,9 +1483,32 @@ function wireHover(maps) {
     });
     if (id) applyPath(id, pinnedWorkspace); else resetPaths();
     renderPinnedNote();
+    if (redraw && mapState && leavingFocus) {
+      renderMap(mapState);
+      if (overviewScroll) {
+        scroll.scrollTop = overviewScroll.top; scroll.scrollLeft = overviewScroll.left;
+        overviewScroll = null;
+        (overviewFocus?.() || $('expand-view')).focus({preventScroll: true});
+        overviewFocus = null;
+      }
+    }
+  };
+  const focusPath = (id, workspace, opener) => {
+    if (!mapState) return;
+    if (!focusedDependencies) {
+      overviewScroll = {top: scroll.scrollTop, left: scroll.scrollLeft};
+      const selected = scroll.querySelector(`.card[data-ws="${CSS.escape(workspace)}"][data-id="${CSS.escape(id)}"] .card-main`);
+      overviewFocus = focusReference(opener || selected || document.activeElement);
+    }
+    setPinned(id, workspace, false);
+    focusedDependencies = true;
+    renderMap(mapState);
+    scroll.scrollTop = 0; scroll.scrollLeft = 0;
+    scroll.querySelector(`.card[data-ws="${CSS.escape(pinnedWorkspace)}"][data-id="${CSS.escape(id)}"] .card-main`)?.focus({preventScroll: true});
   };
 
-  hoverApi = { hover, clear, pin: setPinned, pinned: () => pinnedId };
+  hoverApi = { hover, clear, pin: setPinned, focus: focusPath, pinned: () => pinnedId,
+    refresh: () => { if (pinnedId) applyPath(pinnedId, pinnedWorkspace); } };
 
   for (const card of cards) {
     const id = card.dataset.id, workspace = card.dataset.ws;
@@ -1445,26 +1523,22 @@ function wireHover(maps) {
       openDetail(card.dataset.ws, id, detail);
     });
     detail.addEventListener('dblclick', ev => ev.stopPropagation());
-    // A single click locks the path, so it holds still while you read across
-    // it; a double click opens the resource's details. The second click of a
-    // double arrives here too, and is left alone — the card is already locked,
-    // and the drawer opens on top of it.
+    // Single-click preserves the map; double-click narrows it with its sections intact.
     card.addEventListener('click', ev => {
       ev.stopPropagation(); // a nested card locks itself, not its subnet
       if (ev.detail > 1) return; // the second half of a double click
       setPinned(pinnedId === id && pinnedWorkspace === workspace ? null : id, workspace);
-      if (card.dataset.inventory && latest) renderMap(latest);
     });
     card.addEventListener('dblclick', ev => {
       ev.stopPropagation();
       ev.preventDefault();
-      openDetail(card.dataset.ws, id, main);
+      focusPath(id, workspace, main);
     });
   }
 
   // Re-applied after a redraw so a re-plan does not drop the pin.
-  if (pinnedId && cards.some(c => c.dataset.id === pinnedId && c.dataset.ws === pinnedWorkspace)) setPinned(pinnedId, pinnedWorkspace);
-  else if (pinnedId) setPinned(null);
+  if (pinnedId && cards.some(c => c.dataset.id === pinnedId && c.dataset.ws === pinnedWorkspace)) setPinned(pinnedId, pinnedWorkspace, false);
+  else if (pinnedId) setPinned(null, null, false);
 }
 
 // ---------- detail drawer -----------------------------------------------
@@ -1629,7 +1703,11 @@ $('legend-btn').addEventListener('click', () => {
 document.addEventListener('click', e => {
   if (!$('legend').contains(e.target)) setLegend(false);
 });
-$('release-pin').onclick = () => { hoverApi?.pin(null); $('expand-view').focus(); };
+$('release-pin').onclick = () => { const focused = focusedDependencies; hoverApi?.pin(null); if (!focused) $('expand-view').focus(); };
+$('focus-path').onclick = () => {
+  if (focusedDependencies) hoverApi?.pin(null);
+  else if (pinnedId) hoverApi?.focus(pinnedId, pinnedWorkspace);
+};
 
 let expandedView = false;
 function setExpandedView(expanded) {
@@ -1644,6 +1722,30 @@ function setExpandedView(expanded) {
   else if (tab === 'graph') fitGraph();
 }
 $('expand-view').onclick = () => setExpandedView(!expandedView);
+
+let filtersVisible = true, filtersAutoHidden = false;
+function setFiltersVisible(visible, automatic = false) {
+  filtersVisible = visible;
+  filtersAutoHidden = !visible && automatic;
+  $('toolbar').hidden = !visible;
+  $('toggle-filters').setAttribute('aria-expanded', String(visible));
+  const label = visible ? 'Hide filters' : 'Show filters';
+  $('toggle-filters').setAttribute('aria-label', label);
+  $('toggle-filters').setAttribute('title', label);
+  if (tab === 'graph') fitGraph();
+}
+$('toggle-filters').onclick = () => setFiltersVisible(!filtersVisible);
+for (const scroller of [$('map'), $('review').querySelector('.review-main')].filter(Boolean)) {
+  let previousTop = 0, travel = 0;
+  scroller.addEventListener('scroll', () => {
+    const top = scroller.scrollTop, delta = top - previousTop;
+    previousTop = top;
+    travel = Math.sign(delta) === Math.sign(travel) ? travel + delta : delta;
+    if (expandedView || $('drawer').open || $('toolbar').contains?.(document.activeElement)) return;
+    if (filtersVisible && top > 96 && travel > 32) { setFiltersVisible(false, true); travel = 0; }
+    else if (filtersAutoHidden && (top < 16 || travel < -48)) { setFiltersVisible(true); travel = 0; }
+  }, {passive: true});
+}
 
 // Clicking the empty map releases the pin; cards stop their own clicks here.
 $('map').addEventListener('click', () => {
@@ -1905,6 +2007,7 @@ window.addEventListener('keydown', e => {
   if (e.key === '/' && !$('drawer').open && document.activeElement !== $('q')) {
     e.preventDefault();
     if (expandedView) setExpandedView(false);
+    setFiltersVisible(true);
     $('q').focus();
   }
 });
