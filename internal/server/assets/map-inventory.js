@@ -1,7 +1,8 @@
 const mapSubnetFilters = new Map();
+const mapInventoryScroll = new Map();
 const naturalCompare = (a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'});
 const compareMapResources = (a, b) => naturalCompare(displayName(a), displayName(b)) || naturalCompare(a.id, b.id);
-const SUBNET_PREVIEW_LIMIT = 5;
+const SUBNET_PREVIEW_LIMIT = 3;
 const SUBNET_CARRIERS = new Set(['aws_db_subnet_group', 'aws_elasticache_subnet_group',
   'aws_memorydb_subnet_group', 'aws_redshift_subnet_group', 'aws_docdb_subnet_group',
   'aws_neptune_subnet_group', 'aws_rds_cluster', 'aws_docdb_cluster', 'aws_neptune_cluster']);
@@ -62,31 +63,19 @@ function vpcInventoryHTML(p, m, vis) {
   const list = all.filter(n => !subnet || (m.subnetsByResource.get(n.id) || []).includes(subnet));
   const groups = new Map(VPC_RESOURCE_GROUPS.map(([name]) => [name, []]));
   for (const n of list) groups.get(VPC_RESOURCE_GROUPS.find(([, pattern]) => pattern.test(n.type))[0]).push(n);
-  const rows = [...groups].filter(([, nodes]) => nodes.length).map(([name, nodes]) => `<tbody>
-    <tr class="inventory-group"><th colspan="5" scope="rowgroup">${esc(name)} <span>${nodes.length}</span></th></tr>
+  const cards = [...groups].filter(([, nodes]) => nodes.length).map(([name, nodes]) => `<section class="inventory-category">
+    <h4 class="inventory-group">${esc(name)} <span>${nodes.length}</span></h4><div class="inventory-grid">
     ${nodes.sort(compareMapResources).map(n => {
-      const changes = RENDER_ATTACHED.get(n.id) || [];
-      const subnets = (m.subnetsByResource.get(n.id) || []).map(id => m.nodes.get(id)).filter(Boolean).sort(compareMapResources);
-      return `<tr class="card ${n.status}" data-id="${esc(n.id)}" data-ws="${esc(m.workspace)}" data-inventory="true" title="${esc(n.id)}">
-        <td><button type="button" class="card-main" aria-pressed="false" aria-label="${esc(`Pin path: ${displayName(n)}, ${label(n.type)}, ${ACTION_NAMES[n.status]}`)}">
-          <span class="ico">${iconSVG(n.type)}</span><span class="n">${esc(displayName(n))}</span></button>
-          ${changes.length ? `<span class="attached-change-note">${changes.length} attached change${changes.length === 1 ? '' : 's'}</span>` : ''}</td>
-        <td>${esc(label(n.type))}</td><td>${esc(mapResourceSpec(n) || '\u2014')}</td>
-        <td>${subnets.length ? subnets.map(s => esc(displayName(s))).join(', ') : '<span class="unspecified">Not specified</span>'}</td>
-        <td><span class="action ${n.status}">${ACTION_NAMES[n.status]}</span>
-          <button type="button" class="card-detail" title="View details" aria-label="${esc(`View details for ${n.id}`)}">&#9432;</button></td>
-      </tr>`;
-    }).join('')}</tbody>`).join('');
+      return cardHTML(n, mapResourceSpec(n), '', true);
+    }).join('')}</div></section>`).join('');
   return `<section class="vpc-inventory" data-inventory-key="${esc(key)}">
     <div class="inventory-heading"><h3>Resources in this VPC <span>${list.length}${subnet ? ' of ' + all.length : ''}</span></h3>
       <select class="inventory-subnet" data-inventory-key="${esc(key)}" aria-label="${esc(`Subnet filter for ${displayName(p.vpc)}`)}">
         <option value="">All subnets</option>${p.subnets.map(n => `<option value="${esc(n.id)}"${n.id === subnet ? ' selected' : ''}>${esc(displayName(n))}</option>`).join('')}
       </select></div>
     <div class="inventory-scroll" tabindex="0" role="region" aria-label="${esc(`Resources in ${displayName(p.vpc)}`)}">
-      <table class="vpc-resource-table"><caption class="sr-only">Resources in ${esc(displayName(p.vpc))}</caption>
-        <thead><tr><th scope="col">Name</th><th scope="col">Resource type</th><th scope="col">Size / runtime</th><th scope="col">Subnets</th><th scope="col">Change</th></tr></thead>
-        ${rows || '<tbody><tr><td colspan="5" class="empty">No resources match this subnet.</td></tr></tbody>'}
-      </table></div></section>`;
+      ${cards || '<p class="empty">No resources match this subnet.</p>'}
+    </div></section>`;
 }
 
 function wireMapInventory() {
@@ -106,4 +95,22 @@ function wireMapInventory() {
       section?.querySelector('.inventory-subnet').focus({preventScroll: true});
     });
   }
+}
+
+// Retain placement containers without pulling their unrelated children back in.
+function dependencyVisibility(m, visible, id) {
+  const path = tracePath(id, adjacencyOf(m.links));
+  const result = new Set([...path.nodes].filter(key => visible.has(key)));
+  for (const key of [...result]) {
+    for (const subnet of m.subnetsByResource.get(key) || []) if (visible.has(subnet)) result.add(subnet);
+  }
+  for (const p of m.panels) {
+    if ([p.vpc, ...p.subnets, ...p.routeTables, ...p.gateways, ...p.inventory,
+      ...(p.lbs || []).flatMap(s => [s.lb, ...s.listeners, ...s.rules, ...s.groups, ...s.targets])]
+      .some(n => result.has(n.id))) result.add(p.vpc.id);
+  }
+  for (const parent of [...result]) {
+    for (const change of m.attachedChanges.get(parent) || []) if (visible.has(change.id)) result.add(change.id);
+  }
+  return result;
 }

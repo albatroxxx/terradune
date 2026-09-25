@@ -37,8 +37,8 @@ manually; its release-existence gate still applies.
 ## Verify After Publication
 
 ```sh
-gh release view v1.0.4
-go install github.com/albatroxxx/terradune@v1.0.4
+gh release view v1.0.5
+go install github.com/albatroxxx/terradune@v1.0.5
 terradune -version
 ```
 

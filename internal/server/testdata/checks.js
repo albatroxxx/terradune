@@ -239,7 +239,7 @@ check('hovering a route table reaches its subnets and its gateway', function () 
 
 check('ribbons stay hidden until something is hovered', function () {
   renderMap(STATE);
-  var drawn = document.getElementById('ribbons').children;
+  var drawn = document.getElementById('ribbons').querySelectorAll('path');
   if (!drawn.length) throw new Error('no ribbons drawn');
   var directed = 0;
   for (var i = 0; i < drawn.length; i++) {
@@ -255,10 +255,50 @@ check('ribbons stay hidden until something is hovered', function () {
   print('       (' + drawn.length + ' directed ribbons)');
 });
 
+check('Plan type counts reflect active filters rather than the entire inventory', function () {
+  var oldText = filter.text, oldStatuses = filter.statuses, oldChanges = changesOnly, oldService = reviewService, oldWorkspace = reviewWorkspace;
+  try {
+    reviewWorkspace = ''; reviewService = ''; filter.text = '';
+    for (var action of ['create', 'update', 'replace', 'destroy']) {
+      filter.statuses = new Set([action]); changesOnly = false;
+      renderReview(STATE);
+      var available = inventoryRows(STATE).filter(r => r.node.status === action);
+      var nav = __sinks['service-nav'];
+      if (!nav.includes('<b>' + available.length + '</b>')) throw new Error('wrong filtered total');
+      for (var type of new Set(inventoryRows(STATE).map(r => r.node.type))) {
+        var count = available.filter(r => r.node.type === type).length;
+        if (nav.includes('data-service="' + type + '"') !== (count > 0)) throw new Error('wrong type visibility: ' + type);
+      }
+    }
+    filter.statuses = new Set(); changesOnly = true;
+    if (inventoryRows(STATE).filter(reviewScopeMatches).some(r => r.node.status === 'existing')) throw new Error('unchanged type included');
+    filter.text = 'no-matching-resource'; renderReview(STATE);
+    if ((__sinks['service-nav'].match(/data-service=/g) || []).length !== 1) throw new Error('empty search retained types');
+  } finally {
+    filter.text = oldText; filter.statuses = oldStatuses; changesOnly = oldChanges; reviewService = oldService; reviewWorkspace = oldWorkspace;
+  }
+});
+
+check('lifecycle changes expose labelled before and after values', function () {
+  var update = changeRows({status: 'update', before: {size: 10, same: {a: 1, b: 2}, gone: 'old'}, after: {size: 20, same: {b: 2, a: 1}}});
+  for (var text of ['Before', 'After', '>10<', '>20<', 'Removed']) if (!update.includes(text)) throw new Error('missing ' + text);
+  if (update.includes('>same<')) throw new Error('unchanged object shown as changed');
+  var create = changeRows({status: 'create', after: {name: '<unsafe>', password: '(sensitive value)'}, unknown: ['id']});
+  for (var text of ['Not present', 'Known after apply', '&lt;unsafe&gt;', '(sensitive value)']) if (!create.includes(text)) throw new Error('missing creation value ' + text);
+  var destroy = changeRows({status: 'destroy', before: {name: 'old'}, unknown: ['id']});
+  if (!destroy.includes('Removed') || destroy.includes('Known after apply')) throw new Error('invalid deletion diff');
+  var replace = changeRows({status: 'replace', before: {name: 'same'}, after: {name: 'same'}});
+  if (!replace.includes('destroy and recreate') || !replace.includes('No visible attribute differences')) throw new Error('replacement without attribute changes hidden');
+  var nested = changeRows({status: 'update', before: {route: [{gateway_id: 'old'}]}, after: {route: [{gateway_id: 'new'}]}});
+  if (!nested.includes('old') || !nested.includes('new')) throw new Error('nested route diff lost');
+  var tags = changeRows({status: 'update', before: {tags_all: {Name: 'old'}}, after: {tags_all: {Name: 'new'}}});
+  if (!tags.includes('tags_all')) throw new Error('provider tag changes hidden');
+});
+
 check('hovering reveals the traced path only', function () {
   renderMap(STATE);
   hoverApi.hover('aws_subnet.public[0]');
-  var drawn = document.getElementById('ribbons').children;
+  var drawn = document.getElementById('ribbons').querySelectorAll('path');
   var hot = [], cold = 0;
   for (var i = 0; i < drawn.length; i++) {
     if (drawn[i].getAttribute('opacity') !== '0') {
@@ -285,8 +325,23 @@ check('hovering reveals the traced path only', function () {
   }
 });
 
+check('connection masks cut out card interiors without creating false endpoints', function () {
+  renderMap(STATE);
+  var svg = $('ribbons'), mask = svg.children.find(el => el.tag === 'mask');
+  if (!mask || mask.getAttribute('maskUnits') !== 'userSpaceOnUse') throw new Error('missing coordinate-space mask');
+  if (mask.children.length !== __allCards().length + 1) throw new Error('not every card is protected');
+  if (mask.children[0].getAttribute('fill') !== 'white') throw new Error('connections hidden outside cards');
+  for (var rect of mask.children.slice(1)) {
+    if (rect.getAttribute('fill') !== 'black' || Number(rect.getAttribute('width')) <= 0) throw new Error('invalid card cutout');
+  }
+  for (var path of svg.querySelectorAll('path')) {
+    if (path.getAttribute('mask') !== 'url(#map-card-mask)') throw new Error('unprotected connection');
+    if (!path.dataset.from || !path.dataset.to) throw new Error('lost true endpoints');
+  }
+});
+
 check('a ribbon runs from the vpc to its subnet, not the reverse', function () {
-  var drawn = document.getElementById('ribbons').children;
+  var drawn = document.getElementById('ribbons').querySelectorAll('path');
   var found = false, reversed = false;
   for (var i = 0; i < drawn.length; i++) {
     var f = drawn[i].dataset.from, t = drawn[i].dataset.to;
@@ -342,7 +397,7 @@ check('resources beside the columns are grouped by type', function () {
     throw new Error('load balancer listed beside the columns, not drawn as its own map');
   }
   if (headings['EBS volume'] !== 2) throw new Error('wrong count for EBS volume');
-  if (!h.includes('Resources in this VPC') || !h.includes('Security <span>') || !h.includes('<td>Security group</td>')) {
+  if (!h.includes('Resources in this VPC') || !h.includes('Security <span>') || !h.includes('class="inventory-grid"') || h.includes('<td>Security group</td>')) {
     throw new Error('VPC security inventory missing');
   }
   if (!/<h4>\s*<svg/.test(h)) throw new Error('category heading has no icon');
@@ -399,7 +454,7 @@ check('a relationship is one hop, so hovering does not sprawl', function () {
 check('pinning holds the path, and survives a redraw', function () {
   filter.text = ''; filter.statuses = new Set();
   renderMap(STATE);
-  var drawn = document.getElementById('ribbons').children;
+  var drawn = document.getElementById('ribbons').querySelectorAll('path');
   function visible() {
     var n = 0;
     for (var i = 0; i < drawn.length; i++) {
@@ -418,7 +473,7 @@ check('pinning holds the path, and survives a redraw', function () {
 
   // A re-plan redraws everything; the pin should come back with it.
   renderMap(STATE);
-  drawn = document.getElementById('ribbons').children;
+  drawn = document.getElementById('ribbons').querySelectorAll('path');
   if (hoverApi.pinned() !== 'aws_subnet.public[0]') throw new Error('pin lost on redraw');
   if (!visible()) throw new Error('the pinned path did not survive the redraw');
 
@@ -683,7 +738,7 @@ check('a module\'s instances are nested in another module\'s subnets', function 
 });
 
 // --- locking and details ------------------------------------------------
-check('a single click locks the path, a double click opens the details', function () {
+check('single click keeps the map, double click focuses with sections intact', function () {
   filter.text = ''; filter.statuses = new Set();
   renderMap(STATE);
   if (hoverApi.pinned()) hoverApi.pin(null);
@@ -694,7 +749,9 @@ check('a single click locks the path, a double click opens the details', functio
   }
   if (!card) throw new Error('no subnet card to click');
 
+  var fullMap = __sinks.mapbody;
   __fire(card, 'click', 1);
+  if (__sinks.mapbody !== fullMap) throw new Error('single click rearranged the map');
   if (hoverApi.pinned() !== 'aws_subnet.public[0]') {
     throw new Error('a single click did not lock the path');
   }
@@ -708,9 +765,9 @@ check('a single click locks the path, a double click opens the details', functio
   __fire(card, 'dblclick');
   openDetail = real;
 
-  if (opened !== 'aws_subnet.public[0]') {
-    throw new Error('a double click did not open the details');
-  }
+  if (opened || !focusedDependencies) throw new Error('double click did not focus dependencies');
+  if (!__sinks.mapbody.includes('class="vpc-panel"') || !__sinks.mapbody.includes('class="az"')) throw new Error('focus lost section hierarchy');
+  if (__sinks.mapbody.includes('data-id="aws_subnet.private[0]"')) throw new Error('focus kept unrelated subnet');
   if (hoverApi.pinned() !== 'aws_subnet.public[0]') {
     throw new Error('the double click released the lock');
   }
@@ -812,7 +869,7 @@ check('stacked cards have gutter connections and isolated hover clears old paths
   if (!path || !path.getAttribute('d').includes(' L ')) throw new Error('stacked connection missing');
   hoverApi.hover('aws_subnet.public[0]', 'platform');
   hoverApi.hover('isolated', 'platform');
-  if ($('ribbons').children.some(function (p) { return p.getAttribute('opacity') !== '0'; })) throw new Error('previous path left behind');
+  if ($('ribbons').querySelectorAll('path').some(function (p) { return p.getAttribute('opacity') !== '0'; })) throw new Error('previous path left behind');
   hoverApi.clear();
   renderMap(STATE);
 });
@@ -1188,12 +1245,22 @@ checkConnectionChanges('dense subnets have bounded compact references and a comp
   if (names[1] !== 'server-02' || names[29] !== 'server-30') throw new Error('not naturally sorted');
   renderMap(DENSE_STATE);
   var h = __sinks.mapbody;
-  if ((h.match(/data-compact="true"/g) || []).length !== 5) throw new Error('subnet preview is not bounded');
+  if ((h.match(/data-compact="true"/g) || []).length !== 3) throw new Error('subnet preview is not bounded');
   if ((h.match(/data-inventory="true"/g) || []).length !== 31) throw new Error('inventory lost or duplicated resources');
   if (!h.includes('View all 30 resources')) throw new Error('missing expansion action');
   changesOnly = true;
   renderMap(DENSE_STATE);
   if (( __sinks.mapbody.match(/data-inventory="true"/g) || []).length !== 30) throw new Error('changes filter includes unchanged inventory');
+});
+
+checkConnectionChanges('dependency focus preserves changed attachments and real containers', function () {
+  var ws = CONNECTION_STATE.workspaces[0], m = buildMap(ws);
+  var visible = visibleIn(ws, m);
+  var result = dependencyVisibility(m, visible, 'aws_route_table.main');
+  if (!result.has('aws_route_table.main') || !result.has('aws_vpc.main')) throw new Error('missing parent context');
+  for (var child of m.attachedChanges.get('aws_route_table.main') || []) {
+    if (visible.has(child.id) && !result.has(child.id)) throw new Error('lost attached change');
+  }
 });
 
 checkConnectionChanges('mixed VPC inventory follows placement groups without duplicating shared resources', function () {

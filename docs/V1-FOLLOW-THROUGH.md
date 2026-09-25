@@ -1,6 +1,6 @@
 # V1 Follow-Through
 
-Follow-through priorities for the v1 release series. Current version: 1.0.4.
+Follow-through priorities for the v1 release series. Current version: 1.0.5.
 
 ## Release Record
 
