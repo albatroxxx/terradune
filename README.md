@@ -35,7 +35,7 @@ Terradune requires **Go 1.27.1 or newer** and a separate
 go install github.com/albatroxxx/terradune@latest
 ```
 
-Go is the sole supported installation method. Use `@v1.0.4` instead of
+Go is the sole supported installation method. Use `@v1.0.5` instead of
 `@latest` to pin this release.
 
 Add Go's executable directory to your PATH. On macOS/Linux, for the current
@@ -113,19 +113,19 @@ persistent state of its own; temporary plan directories are cleaned up.
 
 The default view groups VPCs, subnets, route tables, gateways, and load balancers by their infrastructure roles. Resources can appear in more than one contextual placement here; those placements do not duplicate the Plan inventory.
 
-Subnets show compact, naturally sorted resource references rather than nested cards. Large subnets preview five resources; **View all** opens the subnet-filtered VPC inventory. The full-width **Resources in this VPC** table groups compute and containers, databases and caches, storage, networking, security, and other resources. Shared resources appear once in that inventory with their subnet associations. Placement follows plan relationships, including supported subnet groups, rather than assuming every AWS resource belongs to a VPC.
+Subnets show up to three compact, naturally sorted resource references. **View all** opens the subnet-filtered VPC inventory. **Resources in this VPC** uses compact cards grouped into compute and containers, databases and caches, storage, networking, security, and other resources. Shared resources appear once in that inventory. Placement follows plan relationships, including supported subnet groups, rather than assuming every AWS resource belongs to a VPC.
 
-Pin a resource to keep its path highlighted, or use its details button. Solid teal lines end in filled circles for direct dependencies; dashed blue lines end in hollow circles for indirect associations through collapsed routes or attachments. Connections route around card headers and remain visible when columns stack. Pins and paths stay within their workspace. The legend groups resource actions and connection styles.
+Single-click a resource to keep its path highlighted without hiding other resources. Double-click, or choose **Focus path**, to narrow the map while retaining its VPC and subnet sections. Use the details button to inspect a resource. Solid teal lines end in filled circles for direct dependencies; dashed blue lines end in hollow circles for indirect associations through collapsed routes or attachments. Connections route around cards and are masked behind card interiors. Pins and paths stay within their workspace.
 
 Changes to separate routes, associations, and attachments appear on their parent as attached changes, without changing the parent's Terraform action. The connection list opens their individual details, including deleted routes and unresolved endpoints. With **Changes only** enabled, the map keeps relevant unchanged endpoints and containers for context; the counter distinguishes them from actual changes.
 
-The **Expand view** control hides the header and filters to give the active map, plan, or graph more room. **Restore view** brings them back without clearing the current filters or pin. Escape closes details, then the legend, then a pinned path, then restores an expanded view.
+Compact navigation and action counts leave more room for the active view. Filters can collapse manually or while scrolling down, and return when scrolling up. The **Expand view** control hides navigation and filters while keeping view controls available. **Restore view** brings them back without clearing filters or the pin. Escape closes details, then the legend, then a pinned path, then restores an expanded view.
 
 ### Plan
 
-The resource register lists each managed resource once per workspace, including route associations and unfamiliar resource types. Destructive changes sort first. Filter by action, exact resource type, workspace, or search; enable **Changes only** to hide unchanged resources.
+The resource register lists each managed resource once per workspace, including route associations and unfamiliar resource types. Destructive changes sort first. Filter by action, exact resource type, workspace, or search; enable **Changes only** to hide unchanged resources. The resource-type list and counts reflect those filters. A selected type with no remaining matches resets to **All resource types**.
 
-Open a resource to inspect its configuration, attached resources, and dependencies. Updated and replaced resources show before/after values. Terraform's unknown values remain marked as known after apply. Sensitive detail values are masked using Terraform's sensitivity metadata, including nested objects and lists.
+Open a resource to inspect **What changes**, followed by configuration, attached resources, and dependencies. Changed attributes have explicit **Before** and **After** columns for creation, update, replacement, and deletion; changed attached resources use the same comparison. Unknown values remain marked as known after apply. Sensitive values stay masked, including nested objects and lists. Redacted values can prevent a visible comparison; the UI does not invent a difference when values are unavailable.
 
 ### Graph
 

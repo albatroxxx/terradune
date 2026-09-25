@@ -47,7 +47,6 @@ test('plan filters and resource details work with the keyboard', async ({ page }
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Configuration', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'What changes', exact: true }).first()).toBeVisible();
-  await expect(page.locator('#dr-body > .change-table').getByRole('columnheader')).toHaveText(['Attribute', 'Before', 'After']);
   await expect(page.getByRole('button', { name: 'Close details' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(resource).toBeFocused();
@@ -137,6 +136,36 @@ test('compact filters can collapse and return through the search shortcut', asyn
   await expect(page.locator('#toolbar')).toBeVisible();
   await page.getByRole('searchbox', {name: 'Search resources'}).fill('aws_instance');
   await expect(page.locator('#filter-count')).toHaveText('1');
+});
+
+test('Plan type navigation follows action, search and changes-only filters', async ({page, request}) => {
+  try {
+    await request.post('/__test/connection-changes');
+    await page.getByRole('tab', {name: 'Plan', exact: true}).click();
+    await page.getByRole('button', {name: 'Update 2', exact: true}).click();
+    const nav = page.locator('#service-nav');
+    await expect(nav.locator('button')).toHaveCount(3);
+    await expect(nav.locator('[data-service=""]')).toContainText('2');
+    await expect(nav.locator('[data-service="aws_route"]')).toContainText('1');
+    await expect(nav.locator('[data-service="aws_vpc"]')).toHaveCount(0);
+    await nav.locator('[data-service="aws_vpc_security_group_ingress_rule"]').click();
+    await page.getByRole('searchbox', {name: 'Search resources'}).fill('aws_route.updated');
+    await expect(nav.locator('button')).toHaveCount(2);
+    await expect(nav.locator('[data-service=""]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.resource-open')).toHaveCount(1);
+    await page.getByRole('button', {name: 'Clear filters', exact: true}).click();
+    await page.getByRole('checkbox', {name: 'Changes only'}).check();
+    await expect(nav.locator('[data-service=""]')).toContainText('9');
+    await expect(nav.locator('[data-service="aws_vpc"]')).toHaveCount(0);
+    await page.getByRole('button', {name: 'Create 4', exact: true}).click();
+    await expect(nav.locator('[data-service=""]')).toContainText('4');
+    await expect(nav.locator('[data-service="aws_route"]')).toContainText('2');
+    await page.getByRole('searchbox', {name: 'Search resources'}).fill('no-matching-resource');
+    await expect(nav.locator('button')).toHaveCount(1);
+    await expect(nav.locator('[data-service=""]')).toContainText('0');
+  } finally {
+    await request.post('/__test/refresh');
+  }
 });
 
 test('focused graph has real edges and keyboard-operable resources', async ({ page }) => {
@@ -274,6 +303,9 @@ test('route and attachment changes retain map context and inspectable diffs', as
     await table.locator('.card-detail').click();
     const changedRoute = page.locator('.rel').filter({ hasText: 'aws_route.updated' });
     await changedRoute.locator('summary').click();
+    await expect(changedRoute.locator('.change-table').getByRole('columnheader')).toHaveText(['Attribute', 'Before', 'After']);
+    await expect(changedRoute.locator('.change-table')).toContainText('nat-synthetic');
+    await expect(changedRoute.locator('.change-table')).toContainText('igw-synthetic');
     await expect(changedRoute.locator('.was').filter({ hasText: 'nat-synthetic' })).toBeVisible();
     await expect(changedRoute).toContainText('igw-synthetic');
     await page.keyboard.press('Escape');

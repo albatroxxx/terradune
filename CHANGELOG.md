@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.5
+
+- Plan resource-type navigation and counts now follow action, search, workspace, and changes-only filters; unavailable type selections reset automatically.
+- Resource details show explicit Before and After values for changed attributes, including attached routes and associations, unknown values, creations, replacements, and deletions.
+- VPC inventories use compact resource cards; subnet previews are limited to three entries with access to the full inventory.
+- Single-click preserves the complete map; double-click focuses dependencies without losing VPC/subnet sections. Connection lines are masked behind cards.
+- Compact navigation and collapsible filters reclaim workspace height while retaining keyboard access and reduced-motion support.
+
 ## 1.0.4
 
 ### Fixed

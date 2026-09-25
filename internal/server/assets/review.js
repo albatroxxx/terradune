@@ -65,9 +65,13 @@ function inventoryRows(state) {
   return [...rows.values()];
 }
 
-function reviewMatches(row) {
-  return matches(row.node) && (!reviewService || row.service.name === reviewService) &&
+function reviewScopeMatches(row) {
+  return matches(row.node) &&
     (!changesOnly || row.node.status !== 'existing');
+}
+
+function reviewMatches(row) {
+  return reviewScopeMatches(row) && (!reviewService || row.service.name === reviewService);
 }
 
 function sortedReviewRows(state) {
@@ -89,11 +93,12 @@ function scopedState(state) {
 function renderReview(state) {
   const restoreFocus = preserveFocus();
   const all = inventoryRows(state), rows = sortedReviewRows(state);
+  const available = all.filter(reviewScopeMatches);
   const counts = new Map();
-  for (const row of all) counts.set(row.service.name, (counts.get(row.service.name) || 0) + 1);
+  for (const row of available) counts.set(row.service.name, (counts.get(row.service.name) || 0) + 1);
   const services = [...counts].sort((a, b) =>
     (LABELS[a[0]] || a[0]).localeCompare(LABELS[b[0]] || b[0]) || a[0].localeCompare(b[0]));
-  $('service-nav').innerHTML = [['', all.length], ...services].map(([name, count]) =>
+  $('service-nav').innerHTML = [['', available.length], ...services].map(([name, count]) =>
     `<button type="button" data-service="${esc(name)}" aria-pressed="${reviewService === name}">
       <span>${esc(name ? LABELS[name] || name : 'All resource types')}${name && LABELS[name] ? `<small>${esc(name)}</small>` : ''}</span><b>${count}</b></button>`).join('');
   for (const button of $('service-nav').querySelectorAll('button')) {

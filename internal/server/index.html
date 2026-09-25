@@ -1995,6 +1995,8 @@ for (const name of ['map', 'review', 'graph']) {
 async function paint(s) {
   const generation = ++paintGeneration;
   updateWorkspaceFilter(s);
+  if (tab === 'review' && reviewService && !inventoryRows(s).some(row =>
+    reviewScopeMatches(row) && row.service.name === reviewService)) reviewService = '';
   renderChips({...s, workspaces: (s.workspaces || []).filter(ws => !reviewWorkspace || ws.name === reviewWorkspace)});
   if (tab === 'review') renderReview(s);
   else if (tab === 'map') renderMap(s);

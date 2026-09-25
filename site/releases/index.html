@@ -2,17 +2,21 @@
 <html lang="en"><head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Terradune Releases</title>
-  <meta name="description" content="Terradune v1.0.4 fixes route-change visibility and adds compact subnet previews with a grouped VPC resource inventory. Read the release history.">
+  <meta name="description" content="Terradune v1.0.5 adds filtered resource types, explicit Before and After comparisons, compact resource cards and section-aware dependency focus.">
   <link rel="canonical" href="https://albatroxxx.github.io/terradune/releases/">
   <meta name="robots" content="index,follow"><meta property="og:type" content="website">
   <meta property="og:title" content="Terradune Releases"><meta property="og:description" content="Release notes for Terradune, the local Terraform plan review workspace.">
-  <meta property="og:url" content="https://albatroxxx.github.io/terradune/releases/"><meta property="og:image" content="https://albatroxxx.github.io/terradune/assets/resource-map-v1.0.3.png"><meta name="twitter:card" content="summary_large_image">
+  <meta property="og:url" content="https://albatroxxx.github.io/terradune/releases/"><meta property="og:image" content="https://albatroxxx.github.io/terradune/assets/resource-map-v1.0.5.jpg"><meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="../assets/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/site.css">
 </head><body>
   <a class="skip" href="#main">Skip to content</a>
-  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">Terradune</a><nav aria-label="Main"><a href="../docs/">Get started</a><a href="./" aria-current="page">v1.0.4</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
-  <main id="main" class="docs-layout"><nav class="docs-nav" aria-label="Release navigation"><a href="#v104">v1.0.4</a><a href="#v103">v1.0.3</a><a href="#v102">v1.0.2</a><a href="#v101">v1.0.1</a><a href="#v1">v1.0.0</a><a href="../docs/">Installation</a><a href="https://github.com/albatroxxx/terradune/releases">All releases</a></nav><article class="prose">
-    <p class="eyebrow">RELEASE NOTES</p><h1 id="v104">Terradune v1.0.4</h1><p class="release-date">Latest release</p>
+  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">Terradune</a><nav aria-label="Main"><a href="../docs/">Get started</a><a href="./" aria-current="page">v1.0.5</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
+  <main id="main" class="docs-layout"><nav class="docs-nav" aria-label="Release navigation"><a href="#v105">v1.0.5</a><a href="#v104">v1.0.4</a><a href="#v103">v1.0.3</a><a href="#v102">v1.0.2</a><a href="#v101">v1.0.1</a><a href="#v1">v1.0.0</a><a href="../docs/">Installation</a><a href="https://github.com/albatroxxx/terradune/releases">All releases</a></nav><article class="prose">
+    <p class="eyebrow">RELEASE NOTES</p><h1 id="v105">Terradune v1.0.5</h1><p class="release-date">Latest release</p>
+    <ul><li>Plan resource types and counts follow action, search, workspace and changes-only filters.</li><li>What changes shows explicit Before and After values, including attached resources, unknown values and replacements.</li><li>Compact VPC resource cards, shorter subnet previews and collapsible filters leave more room for the map.</li><li>Single-click preserves the map; double-click focuses dependencies while retaining VPC and subnet sections. Connections are masked behind card interiors.</li></ul>
+    <p><a class="button primary" href="../docs/#go">Install with Go</a> <a class="button" href="https://github.com/albatroxxx/terradune/releases/tag/v1.0.5">GitHub release</a></p>
+    <figure><img src="../assets/plan-v1.0.5.jpg" width="1280" height="800" alt="Terradune v1.0.5 Plan view filtered to four updates, showing only four matching resource types" loading="lazy"><figcaption>Resource types and counts now follow the active Plan filters.</figcaption></figure>
+    <h2 id="v104">Terradune v1.0.4</h2>
     <ul><li>Changes-only keeps changed routes, associations, rules, and attachments visible alongside their unchanged topology. Connection details include previous values.</li><li>Dense subnets use compact resource previews with access to the full subnet-filtered inventory.</li><li>Grouped VPC inventory includes compute and containers, databases and caches, storage, networking, security, and other resources with known VPC placement.</li><li>Natural sorting and preserved focus, selection, and scrolling improve review of larger plans.</li></ul>
     <p><a class="button primary" href="../docs/#go">Install with Go</a> <a class="button" href="https://github.com/albatroxxx/terradune/releases/tag/v1.0.4">GitHub release</a></p>
     <figure><a href="../assets/resource-map-v1.0.4.jpg"><img src="../assets/resource-map-v1.0.4.jpg" width="1280" height="720" alt="Terradune v1.0.4 showing a compact preview of 30 servers in one subnet and the VPC resource inventory below" loading="lazy"></a><figcaption>v1.0.4 keeps dense subnets compact, with the full resource inventory below the topology.</figcaption></figure>

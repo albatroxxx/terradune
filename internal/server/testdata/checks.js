@@ -255,6 +255,30 @@ check('ribbons stay hidden until something is hovered', function () {
   print('       (' + drawn.length + ' directed ribbons)');
 });
 
+check('Plan type counts reflect active filters rather than the entire inventory', function () {
+  var oldText = filter.text, oldStatuses = filter.statuses, oldChanges = changesOnly, oldService = reviewService, oldWorkspace = reviewWorkspace;
+  try {
+    reviewWorkspace = ''; reviewService = ''; filter.text = '';
+    for (var action of ['create', 'update', 'replace', 'destroy']) {
+      filter.statuses = new Set([action]); changesOnly = false;
+      renderReview(STATE);
+      var available = inventoryRows(STATE).filter(r => r.node.status === action);
+      var nav = __sinks['service-nav'];
+      if (!nav.includes('<b>' + available.length + '</b>')) throw new Error('wrong filtered total');
+      for (var type of new Set(inventoryRows(STATE).map(r => r.node.type))) {
+        var count = available.filter(r => r.node.type === type).length;
+        if (nav.includes('data-service="' + type + '"') !== (count > 0)) throw new Error('wrong type visibility: ' + type);
+      }
+    }
+    filter.statuses = new Set(); changesOnly = true;
+    if (inventoryRows(STATE).filter(reviewScopeMatches).some(r => r.node.status === 'existing')) throw new Error('unchanged type included');
+    filter.text = 'no-matching-resource'; renderReview(STATE);
+    if ((__sinks['service-nav'].match(/data-service=/g) || []).length !== 1) throw new Error('empty search retained types');
+  } finally {
+    filter.text = oldText; filter.statuses = oldStatuses; changesOnly = oldChanges; reviewService = oldService; reviewWorkspace = oldWorkspace;
+  }
+});
+
 check('lifecycle changes expose labelled before and after values', function () {
   var update = changeRows({status: 'update', before: {size: 10, same: {a: 1, b: 2}, gone: 'old'}, after: {size: 20, same: {b: 2, a: 1}}});
   for (var text of ['Before', 'After', '>10<', '>20<', 'Removed']) if (!update.includes(text)) throw new Error('missing ' + text);
