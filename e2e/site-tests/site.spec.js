@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 for (const width of [390, 1440]) {
-  for (const route of ['/', '/docs/', '/releases/', '/404.html']) {
+  for (const route of ['./', 'docs/', 'releases/', '404.html']) {
     test(`${route} loads and is accessible at ${width}px`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 });
       const errors = [];
@@ -31,7 +31,7 @@ for (const width of [390, 1440]) {
 for (const width of [320, 720, 721, 1440, 1920]) {
   test(`home keeps the approved layout at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 1000 });
-    await page.goto('/');
+    await page.goto('./');
     await page.evaluate(() => document.fonts.ready);
     const bounds = selector => page.locator(selector).boundingBox();
     const brand = await bounds('.brand');
@@ -64,9 +64,19 @@ for (const width of [320, 720, 721, 1440, 1920]) {
 }
 
 test('keyboard skip link reaches the main content', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('./');
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/#main$/);
+});
+
+test('documentation command blocks can be scrolled with the keyboard', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('docs/');
+  const command = page.getByRole('region', { name: 'Windows PATH setup' });
+  await command.focus();
+  await expect(command).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => command.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
 });

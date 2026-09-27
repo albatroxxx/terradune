@@ -9,14 +9,14 @@ export default defineConfig({
   timeout: 30_000,
   reporter: [['list'], ['html', { outputFolder: 'site-report', open: 'never' }]],
   use: {
-    baseURL: 'http://127.0.0.1:18394',
+    baseURL: 'http://127.0.0.1:18394/terradune/',
     browserName: 'chromium',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'python3 -m http.server 18394 --bind 127.0.0.1 --directory ../site',
-    url: 'http://127.0.0.1:18394',
+    command: 'python3 site-server.py',
+    url: 'http://127.0.0.1:18394/terradune/',
     reuseExistingServer: false,
   },
 });

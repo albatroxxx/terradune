@@ -16,7 +16,7 @@ class SelectionTests(unittest.TestCase):
 
     def test_site_only(self):
         for path in ("site/index.html", "site/assets/screenshot.png",
-                     "scripts/check-site.py", "e2e/site.config.js",
+                     "scripts/check-site.py", "e2e/site.config.js", "e2e/site-server.py",
                      "e2e/site-tests/site.spec.js"):
             with self.subTest(path=path):
                 self.assertEqual(self.selected([path]), {"site"})

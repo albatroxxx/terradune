@@ -14,7 +14,7 @@ def select(paths, full=False):
     selected = set(JOBS) if full else set()
     for path in paths:
         if path.startswith("site/") or path in (
-            "scripts/check-site.py", "e2e/site.config.js",
+            "scripts/check-site.py", "e2e/site.config.js", "e2e/site-server.py",
         ) or path.startswith("e2e/site-tests/"):
             selected.add("site")
         elif path.startswith("internal/server/"):
