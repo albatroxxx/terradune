@@ -2,6 +2,11 @@ name: CI
 
 on:
   workflow_call:
+    inputs:
+      force_full:
+        type: boolean
+        default: true
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
@@ -19,7 +24,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Select checks
+    runs-on: ubuntu-latest
+    outputs:
+      site: ${{ steps.select.outputs.site }}
+      test: ${{ steps.select.outputs.test }}
+      browser: ${{ steps.select.outputs.browser }}
+      cli: ${{ steps.select.outputs.cli }}
+      sast: ${{ steps.select.outputs.sast }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: python3 -m unittest discover -s scripts -p 'test_ci.py' -v
+      - id: select
+        run: python3 scripts/ci.py
+        env:
+          FORCE_FULL: ${{ inputs.force_full || false }}
+
   browser:
+    needs: changes
+    if: needs.changes.outputs.browser == 'true'
     name: Browser and accessibility (${{ matrix.browser }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -54,13 +80,38 @@ jobs:
           retention-days: 7
 
   site:
-    name: Static site
+    name: Website layout and accessibility
+    needs: changes
+    if: needs.changes.outputs.site == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - run: python3 scripts/check-site.py
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288 # v5
+        with:
+          package_json_file: e2e/package.json
+      - run: pnpm install --frozen-lockfile
+        working-directory: e2e
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: e2e
+      - run: pnpm exec playwright test --config=site.config.js
+        working-directory: e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: website-browser
+          path: |
+            e2e/site-report/
+            e2e/site-results/
+          retention-days: 7
 
   test:
+    needs: changes
+    if: needs.changes.outputs.test == 'true'
     name: Build and test (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -100,6 +151,8 @@ jobs:
       - run: go test -race -count=1 ./...
 
   cli:
+    needs: changes
+    if: needs.changes.outputs.cli == 'true'
     name: CLI (${{ matrix.cli }}, ${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -135,6 +188,8 @@ jobs:
           TERRADUNE_TEST_CLI="$cli_path" go test -race -count=1 -run TestCLIIntegration -v ./internal/ingest
 
   sast:
+    needs: changes
+    if: needs.changes.outputs.sast == 'true'
     name: SAST
     runs-on: ubuntu-latest
     steps:
@@ -147,23 +202,16 @@ jobs:
 
       # gosec: Go-specific static analysis for insecure patterns.
       - name: gosec
-        uses: securego/gosec@master
-        with:
-          args: -no-fail -fmt sarif -out gosec.sarif ./...
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec -fmt sarif -out gosec.sarif ./...
       - name: Upload gosec results
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && hashFiles('gosec.sarif') != ''
         with:
           sarif_file: gosec.sarif
           category: gosec
         continue-on-error: true
-
-      # gosec again, this time deciding the job: SARIF above is for the
-      # security tab, this is the gate.
-      - name: gosec (gate)
-        run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@latest
-          gosec ./...
 
       # staticcheck: correctness and misuse the compiler does not catch.
       - name: staticcheck
@@ -189,3 +237,14 @@ jobs:
       - run: |
           semgrep scan --error --quiet --exclude=examples \
             --config p/golang --config p/javascript --config p/secrets
+
+  result:
+    name: CI result
+    if: always()
+    needs: [changes, browser, site, test, cli, sast, semgrep]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 scripts/ci.py gate
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}

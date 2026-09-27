@@ -32,6 +32,21 @@ On restricted desktop sandboxes, browser processes may not be permitted to
 start. Run the suite on a supported developer machine or inspect the CI
 artifacts; do not treat an infrastructure launch failure as a passing test.
 
+## Website Tests
+
+The GitHub Pages site has a separate suite with no Go dependency:
+
+```sh
+pnpm exec playwright test --config=site.config.js
+```
+
+It uses Python 3 to serve `site/` on `127.0.0.1:18394` and Chromium to check
+page accessibility, image loading, keyboard navigation, horizontal overflow,
+and the homepage's desktop/mobile layout. Reports and screenshots are written
+to `site-report/` and `site-results/`. CI retains them for seven days.
+
+See [CI policy](../docs/CI.md) for which changes select each suite.
+
 For a manual browser check from the repository root:
 
 ```sh
