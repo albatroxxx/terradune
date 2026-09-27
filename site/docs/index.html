@@ -19,28 +19,28 @@
     <p class="eyebrow">GET STARTED</p><h1>Install Terradune</h1><p>Install locally with Go and use the Terraform or OpenTofu CLI on your machine. Go is the sole supported installation method.</p>
     <h2 id="install-go">1. Install Go</h2><p>Terradune requires <strong>Go 1.27.1 or newer</strong>. Choose your operating system and architecture at <a href="https://go.dev/dl/">go.dev/dl</a>.</p>
     <ul><li><strong>macOS:</strong> open the downloaded package installer and follow its prompts.</li><li><strong>Windows:</strong> run the MSI installer, then reopen PowerShell.</li><li><strong>Linux:</strong> follow the <a href="https://go.dev/doc/install">official installation steps</a> to install into a fresh <code>/usr/local/go</code> directory and add <code>/usr/local/go/bin</code> to PATH.</li></ul>
-    <div class="code-block"><button type="button" class="copy" aria-label="Copy Go version check">Copy</button><pre><code>go version</code></pre></div>
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy Go version check">Copy</button><pre tabindex="0" role="region" aria-label="Go version check"><code>go version</code></pre></div>
     <p>Verify the reported version is at least 1.27.1. Install <a href="https://developer.hashicorp.com/terraform/install">Terraform</a> or <a href="https://opentofu.org/docs/intro/install/">OpenTofu</a> separately and make sure its command is on PATH.</p>
     <h2 id="go">2. Install Terradune</h2>
-    <div class="code-block"><button type="button" class="copy" aria-label="Copy Go installation command">Copy</button><pre><code>go install github.com/albatroxxx/terradune@latest</code></pre></div>
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy Go installation command">Copy</button><pre tabindex="0" role="region" aria-label="Go installation command"><code>go install github.com/albatroxxx/terradune@latest</code></pre></div>
     <p>Use <code>@v1.0.5</code> instead of <code>@latest</code> to pin this release. Add Go's executable directory to PATH. For the current macOS/Linux terminal:</p>
-    <div class="code-block"><button type="button" class="copy" aria-label="Copy macOS and Linux PATH setup">Copy</button><pre><code>go_bin="$(go env GOBIN)"
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy macOS and Linux PATH setup">Copy</button><pre tabindex="0" role="region" aria-label="macOS and Linux PATH setup"><code>go_bin="$(go env GOBIN)"
 export PATH="${go_bin:-$(go env GOPATH)/bin}:$PATH"
 terradune -version</code></pre></div>
     <p>Put the same setup in your shell profile, such as <code>~/.zshrc</code> or <code>~/.bashrc</code>, for future terminals. For the current Windows PowerShell session:</p>
-    <div class="code-block"><button type="button" class="copy" aria-label="Copy Windows PATH setup">Copy</button><pre><code>$goBin = go env GOBIN
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy Windows PATH setup">Copy</button><pre tabindex="0" role="region" aria-label="Windows PATH setup"><code>$goBin = go env GOBIN
 if (-not $goBin) { $goBin = Join-Path (go env GOPATH) "bin" }
 $env:Path = "$goBin;$env:Path"
 terradune -version</code></pre></div>
     <p>For future Windows sessions, add that directory to your user <strong>Path</strong> in Environment Variables. A custom <code>GOBIN</code> takes precedence over the default <code>GOPATH/bin</code> directory.</p>
     <h2 id="aws">AWS credentials</h2><p>Terradune uses your CLI's provider authentication, including environment credentials, AWS profiles, SSO, and credential helpers. Log in using your existing AWS workflow before planning. Keep credentials out of committed configuration and screenshots.</p>
     <h2 id="review">3. Review a plan</h2>
-    <div class="code-block"><button type="button" class="copy" aria-label="Copy workspace initialization and launch commands">Copy</button><pre><code>terraform -chdir=./infra init
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy workspace initialization and launch commands">Copy</button><pre tabindex="0" role="region" aria-label="Workspace initialization and launch commands"><code>terraform -chdir=./infra init
 terradune ./infra</code></pre></div>
     <p>Replace <code>./infra</code> with your workspace. With OpenTofu, use <code>tofu -chdir=./infra init</code>. Terradune uses Terraform when available and otherwise falls back to OpenTofu.</p>
     <p>Open <a href="http://localhost:8383">localhost:8383</a>, or the URL printed in your terminal. Stop with Ctrl+C. If the port is occupied, use <code>terradune -port 8484 ./infra</code>.</p>
     <p><strong>Resource Map</strong> is the default view. Single-click pins a path; double-click or Focus path narrows dependencies while retaining VPC and subnet sections. Filled teal circles mark direct connections; hollow blue circles mark indirect associations. <strong>Plan</strong> lists each managed resource once per workspace. Resource types and counts follow action, search, workspace and changes-only filters. Open a resource for <strong>What changes</strong>, with explicit Before and After values. <strong>Graph</strong> shows dependencies, with arrows pointing from a dependent to its prerequisite.</p>
-    <div class="code-block"><button type="button" class="copy" aria-label="Copy Terraform variable example">Copy</button><pre><code>terradune -var-file prod.tfvars -var region=eu-west-2 ./infra</code></pre></div>
+    <div class="code-block"><button type="button" class="copy" aria-label="Copy Terraform variable example">Copy</button><pre tabindex="0" role="region" aria-label="Terraform variable example"><code>terradune -var-file prod.tfvars -var region=eu-west-2 ./infra</code></pre></div>
     <h2 id="update">Update or remove</h2><p>Stop Terradune, run the install command again, and check <code>terradune -version</code>. To remove it, delete <code>terradune</code> or <code>terradune.exe</code> from your Go executable directory. Keep your Terraform workspaces and state files intact.</p>
     <h2 id="compatibility">Compatibility</h2>
     <table><thead><tr><th scope="col">Supported in v1</th><th scope="col">Not yet first-class</th></tr></thead><tbody><tr><td>Managed resource changes, including unfamiliar AWS types</td><td>Data-source inventory and read actions</td></tr><tr><td>Create, update, replace, destroy, unchanged</td><td>Imports, moves, forgotten resources, and output changes</td></tr><tr><td>Module addresses, count, for_each, multiple working directories</td><td>Deferred plans and complete provider-alias account/region modeling</td></tr><tr><td>Unknown values and Terraform sensitivity masks</td><td>Automatic discovery of unmarked secrets</td></tr></tbody></table>

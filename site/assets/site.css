@@ -6,7 +6,7 @@ html { scroll-behavior: smooth; scroll-padding-top: 24px; }
 body { margin: 0; color: var(--ink); background: white; font: 16px/1.65 Cantarell, system-ui, sans-serif; }
 a { color: var(--green); text-underline-offset: 4px; }
 a:hover { text-decoration-thickness: 2px; }
-a:focus-visible, button:focus-visible { outline: 3px solid #326fa4; outline-offset: 4px; }
+a:focus-visible, button:focus-visible, pre:focus-visible { outline: 3px solid #326fa4; outline-offset: 4px; }
 img { display: block; max-width: 100%; height: auto; }
 h1, h2, h3, p { margin-top: 0; }
 h1, h2, h3 { line-height: 1.18; }
