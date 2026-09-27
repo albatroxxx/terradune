@@ -27,7 +27,10 @@
   <main id="main">
     <section class="hero" aria-labelledby="title">
       <div class="hero-copy"><p class="eyebrow">LOCAL INFRASTRUCTURE REVIEW</p><h1 id="title">Terradune</h1><p class="lead">See what Terraform will create, change, and connect.</p><div class="actions"><a class="button primary" href="docs/#go">Install with Go</a><a class="button" href="releases/">What's new</a></div></div>
-      <a class="hero-media" href="assets/resource-map-v1.0.5.jpg" aria-label="View the full Terradune Resource Map screenshot"><img src="assets/resource-map-v1.0.5.jpg" width="1280" height="800" alt="Terradune's Resource Map with a highlighted VPC path and visible dependency lines connecting subnets, route tables, NAT gateways, and an internet gateway" fetchpriority="high"></a>
+      <div class="hero-gallery" aria-label="Resource Map screenshots">
+        <figure><a href="assets/resource-map-v1.0.5.jpg" aria-label="View the full Resource Map screenshot"><img src="assets/resource-map-v1.0.5.jpg" width="1280" height="800" alt="Resource Map showing a VPC, subnets, route tables, gateways, and colored dependency lines" fetchpriority="high"></a><figcaption>Resource Map</figcaption></figure>
+        <figure><a href="assets/resource-map-focus-v1.0.5.png" aria-label="View the full dependency focus screenshot"><img src="assets/resource-map-focus-v1.0.5.png" width="1230" height="837" alt="Resource Map after double-clicking a subnet, showing only its dependency path while retaining VPC and subnet sections" loading="lazy"></a><figcaption>Double-click dependency focus</figcaption></figure>
+      </div>
     </section>
     <section class="intro band"><div><p class="eyebrow">FROM PLAN TO UNDERSTANDING</p><h2>Three views. One plan.</h2></div><p>AWS infrastructure is easier to review when the changes and their relationships are visible together. Move from the map to every resource, then follow its dependencies.</p></section>
     <section class="views band" aria-label="Product views">
