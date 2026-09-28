@@ -164,18 +164,7 @@ func run(ctx context.Context, dir, host string, port int, printOnly bool, opts i
 
 	go func() {
 		err := watch.Watch(ctx, root, func(paths []string) {
-			hit := map[string]ingest.Workspace{}
-			for _, p := range paths {
-				if ws, ok := ingest.Owner(workspaces, p); ok {
-					hit[ws.Name] = ws
-				}
-			}
-			if len(hit) == 0 { // a shared file outside every workspace
-				for _, ws := range workspaces {
-					hit[ws.Name] = ws
-				}
-			}
-			for _, ws := range hit {
+			for _, ws := range workspacesForChanges(workspaces, paths) {
 				log.Printf("%s: change detected", ws.Name)
 				plans.Trigger(ws)
 			}
@@ -206,4 +195,23 @@ func run(ctx context.Context, dir, host string, port int, printOnly bool, opts i
 		return nil
 	}
 	return err
+}
+
+func workspacesForChanges(workspaces []ingest.Workspace, paths []string) []ingest.Workspace {
+	hit := map[string]bool{}
+	for _, path := range paths {
+		if ws, ok := ingest.Owner(workspaces, path); ok {
+			hit[ws.Dir] = true
+		} else {
+			// A shared change affects every workspace, even in a mixed batch.
+			return workspaces
+		}
+	}
+	var selected []ingest.Workspace
+	for _, ws := range workspaces {
+		if hit[ws.Dir] {
+			selected = append(selected, ws)
+		}
+	}
+	return selected
 }

@@ -7,10 +7,75 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/albatroxxx/terradune/internal/graph"
 	tfjson "github.com/hashicorp/terraform-json"
 )
+
+type stalledResponse struct {
+	*httptest.ResponseRecorder
+	started chan struct{}
+	release chan struct{}
+}
+
+func (w *stalledResponse) Write(p []byte) (int, error) {
+	close(w.started)
+	<-w.release
+	return w.ResponseRecorder.Write(p)
+}
+
+func TestResourceResponseDoesNotHoldStateLock(t *testing.T) {
+	for _, test := range []struct {
+		name, query string
+		status      int
+	}{
+		{"success", "workspace=test&address=aws_vpc.main", http.StatusOK},
+		{"missing workspace", "workspace=missing&address=aws_vpc.main", http.StatusNotFound},
+		{"missing resource", "workspace=test&address=missing", http.StatusNotFound},
+		{"encoding error", "workspace=test&address=broken", http.StatusInternalServerError},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			s := New("/test")
+			s.SetGraph("test", "/test", "terraform", "test", &graph.Graph{}, map[string]*graph.Detail{
+				"aws_vpc.main": {Address: "aws_vpc.main"},
+				"broken":       {Address: "broken", Before: map[string]interface{}{"invalid": make(chan int)}},
+			})
+			w := &stalledResponse{httptest.NewRecorder(), make(chan struct{}), make(chan struct{})}
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				s.handleResource(w, httptest.NewRequest("GET", "/resource?"+test.query, nil))
+			}()
+			var updated chan struct{}
+			t.Cleanup(func() {
+				close(w.release)
+				<-done
+				if updated != nil {
+					<-updated
+				}
+				if w.Code != test.status {
+					t.Errorf("status = %d, want %d", w.Code, test.status)
+				}
+				if test.status == http.StatusOK && !json.Valid(w.Body.Bytes()) {
+					t.Error("resource response is not JSON")
+				}
+			})
+			select {
+			case <-w.started:
+			case <-time.After(3 * time.Second):
+				t.Fatal("response did not start")
+			}
+			updated = make(chan struct{})
+			go func() { s.SetRebuilding("test", "/test"); close(updated) }()
+			select {
+			case <-updated:
+			case <-time.After(time.Second):
+				t.Error("stalled client blocked a state update")
+			}
+		})
+	}
+}
 
 func TestLatestSnapshotReplacesQueuedState(t *testing.T) {
 	s := New("/test")

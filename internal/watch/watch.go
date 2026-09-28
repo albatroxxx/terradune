@@ -21,7 +21,7 @@ func isRelevant(path string) bool {
 	case ".tf", ".tfvars":
 		return true
 	}
-	return strings.HasSuffix(path, ".tf.json")
+	return strings.HasSuffix(path, ".tf.json") || strings.HasSuffix(path, ".tfvars.json")
 }
 
 func skipDir(name string) bool {
@@ -30,7 +30,8 @@ func skipDir(name string) bool {
 		(data != "" && name == filepath.Base(filepath.Clean(data)))
 }
 
-// Watch observes *.tf/*.tfvars files under root (recursively) and calls
+// Watch observes Terraform source and variable files, including their JSON
+// variants, under root (recursively) and calls
 // onChange with the changed paths after edits settle for a debounce interval.
 // Blocks until ctx is cancelled.
 func Watch(ctx context.Context, root string, onChange func(paths []string)) error {
