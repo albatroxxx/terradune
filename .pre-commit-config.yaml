@@ -1,0 +1,32 @@
+minimum_pre_commit_version: '4.6.2'
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-json
+      - id: check-ast
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: Check Go formatting (read-only)
+        entry: python3 scripts/check-source.py gofmt
+        language: system
+        types: [go]
+      - id: javascript-syntax
+        name: Check JavaScript syntax
+        entry: python3 scripts/check-source.py javascript
+        language: system
+        types: [javascript]
+        exclude: ^internal/server/assets/elk\.bundled\.js$
+      - id: static-site
+        name: Validate website links and metadata
+        entry: python3 scripts/check-site.py
+        language: system
+        files: ^(site/|VERSION$|scripts/check-site\.py$)
+        pass_filenames: false
