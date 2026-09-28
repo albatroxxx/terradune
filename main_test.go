@@ -1,6 +1,42 @@
 package main
 
-import "testing"
+import (
+	"path/filepath"
+	"reflect"
+	"testing"
+
+	"github.com/albatroxxx/terradune/internal/ingest"
+)
+
+func TestWorkspacesForChanges(t *testing.T) {
+	root := t.TempDir()
+	a := ingest.Workspace{Name: "a", Dir: filepath.Join(root, "a")}
+	b := ingest.Workspace{Name: "b", Dir: filepath.Join(root, "b")}
+	nested := ingest.Workspace{Name: "a/nested", Dir: filepath.Join(a.Dir, "nested")}
+	workspaces := []ingest.Workspace{a, nested, b}
+	owned := filepath.Join(a.Dir, "main.tf")
+	shared := filepath.Join(root, "shared", "variables.tf")
+	for _, test := range []struct {
+		name  string
+		paths []string
+		want  []ingest.Workspace
+	}{
+		{"owned", []string{owned}, []ingest.Workspace{a}},
+		{"duplicate edits", []string{owned, owned}, []ingest.Workspace{a}},
+		{"shared", []string{shared}, workspaces},
+		{"owned then shared", []string{owned, shared}, workspaces},
+		{"shared then owned", []string{shared, owned}, workspaces},
+		{"nested owner", []string{filepath.Join(nested.Dir, "main.tf")}, []ingest.Workspace{nested}},
+		{"stable order", []string{filepath.Join(b.Dir, "main.tf"), owned}, []ingest.Workspace{a, b}},
+		{"empty batch", nil, nil},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := workspacesForChanges(workspaces, test.paths); !reflect.DeepEqual(got, test.want) {
+				t.Fatalf("got %v, want %v", got, test.want)
+			}
+		})
+	}
+}
 
 func TestListenAddress(t *testing.T) {
 	for _, test := range []struct {

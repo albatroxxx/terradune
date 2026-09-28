@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.6
+
+### Fixed
+
+- Slow resource-details clients no longer hold the shared state lock while a response is written, including error responses, so other requests and plan updates can continue.
+- JSON Terraform variable files (`.tfvars.json` and `.auto.tfvars.json`) now trigger live refreshes under the scanned root.
+- Change batches containing both shared and workspace-specific paths replan every scanned workspace; empty batches no longer schedule unnecessary plans.
+
+### Development
+
+- Added regression tests for stalled HTTP responses, JSON variable file events, and mixed edit batches.
+- Change-aware CI, website layout/accessibility tests, and fast pre-commit checks protect future updates.
+
 ## 1.0.5
 
 - Plan resource-type navigation and counts now follow action, search, workspace, and changes-only filters; unavailable type selections reset automatically.

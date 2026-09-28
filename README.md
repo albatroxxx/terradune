@@ -35,7 +35,7 @@ Terradune requires **Go 1.27.1 or newer** and a separate
 go install github.com/albatroxxx/terradune@latest
 ```
 
-Go is the sole supported installation method. Use `@v1.0.5` instead of
+Go is the sole supported installation method. Use `@v1.0.6` instead of
 `@latest` to pin this release.
 
 Add Go's executable directory to your PATH. On macOS/Linux, for the current

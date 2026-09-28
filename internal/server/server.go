@@ -219,14 +219,15 @@ func (s *Server) handleResource(w http.ResponseWriter, r *http.Request) {
 	addr := r.URL.Query().Get("address")
 
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	byAddr, ok := s.details[wsName]
 	if !ok {
+		s.mu.Unlock()
 		http.Error(w, "unknown workspace", http.StatusNotFound)
 		return
 	}
 	detail, ok := byAddr[addr]
 	if !ok {
+		s.mu.Unlock()
 		http.Error(w, "unknown resource", http.StatusNotFound)
 		return
 	}
@@ -242,13 +243,16 @@ func (s *Server) handleResource(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	w.Header().Set("Content-Type", "application/json")
-	// The address is deliberately left out: it comes from the request, and
-	// putting request data into a log is how forged log lines happen. An
-	// encode failure here is a client that hung up, so the error is enough.
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+	// Snapshot the response under the lock, but never hold it across client I/O.
+	payload, err := json.Marshal(resp)
+	s.mu.Unlock()
+	if err != nil {
 		log.Printf("terradune: encoding resource response: %v", err)
+		http.Error(w, "resource response unavailable", http.StatusInternalServerError)
+		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	writeOrLog(w, append(payload, '\n'))
 }
 
 func relate(byAddr map[string]*graph.Detail, addr string) related {

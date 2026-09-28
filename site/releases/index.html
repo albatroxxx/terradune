@@ -2,7 +2,7 @@
 <html lang="en"><head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Terradune Releases</title>
-  <meta name="description" content="Terradune v1.0.5 adds filtered resource types, explicit Before and After comparisons, compact resource cards and section-aware dependency focus.">
+  <meta name="description" content="Terradune v1.0.6 fixes JSON variable-file refreshes, mixed shared-file change batches, and stalled resource-detail responses that block updates.">
   <link rel="canonical" href="https://albatroxxx.github.io/terradune/releases/">
   <meta name="robots" content="index,follow"><meta property="og:type" content="website">
   <meta property="og:title" content="Terradune Releases"><meta property="og:description" content="Release notes for Terradune, the local Terraform plan review workspace.">
@@ -10,9 +10,12 @@
   <link rel="icon" href="../assets/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/site.css">
 </head><body>
   <a class="skip" href="#main">Skip to content</a>
-  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">Terradune</a><nav aria-label="Main"><a href="../docs/">Get started</a><a href="./" aria-current="page">v1.0.5</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
-  <main id="main" class="docs-layout"><nav class="docs-nav" aria-label="Release navigation"><a href="#v105">v1.0.5</a><a href="#v104">v1.0.4</a><a href="#v103">v1.0.3</a><a href="#v102">v1.0.2</a><a href="#v101">v1.0.1</a><a href="#v1">v1.0.0</a><a href="../docs/">Installation</a><a href="https://github.com/albatroxxx/terradune/releases">All releases</a></nav><article class="prose">
-    <p class="eyebrow">RELEASE NOTES</p><h1 id="v105">Terradune v1.0.5</h1><p class="release-date">Latest release</p>
+  <header class="site-header"><a class="brand" href="../"><img src="../assets/logo.svg" alt="" width="32" height="32">Terradune</a><nav aria-label="Main"><a href="../docs/">Get started</a><a href="./" aria-current="page">v1.0.6</a><a href="https://github.com/albatroxxx/terradune">GitHub &#8599;</a></nav></header>
+  <main id="main" class="docs-layout"><nav class="docs-nav" aria-label="Release navigation"><a href="#v106">v1.0.6</a><a href="#v105">v1.0.5</a><a href="#v104">v1.0.4</a><a href="#v103">v1.0.3</a><a href="#v102">v1.0.2</a><a href="#v101">v1.0.1</a><a href="#v1">v1.0.0</a><a href="../docs/">Installation</a><a href="https://github.com/albatroxxx/terradune/releases">All releases</a></nav><article class="prose">
+    <p class="eyebrow">RELEASE NOTES</p><h1 id="v106">Terradune v1.0.6</h1><p class="release-date">Latest release</p>
+    <ul><li>Slow resource-details responses no longer block state updates or other requests, including error responses.</li><li>JSON variable files, including <code>.auto.tfvars.json</code>, trigger refreshes under the scanned root.</li><li>Shared-file edits replan all scanned workspaces even when batched with workspace-specific edits. Empty batches are ignored.</li></ul>
+    <p><a class="button primary" href="../docs/#go">Install with Go</a> <a class="button" href="https://github.com/albatroxxx/terradune/releases/tag/v1.0.6">GitHub release</a></p>
+    <h2 id="v105">Terradune v1.0.5</h2>
     <ul><li>Plan resource types and counts follow action, search, workspace and changes-only filters.</li><li>What changes shows explicit Before and After values, including attached resources, unknown values and replacements.</li><li>Compact VPC resource cards, shorter subnet previews and collapsible filters leave more room for the map.</li><li>Single-click preserves the map; double-click focuses dependencies while retaining VPC and subnet sections. Connections are masked behind card interiors.</li></ul>
     <p><a class="button primary" href="../docs/#go">Install with Go</a> <a class="button" href="https://github.com/albatroxxx/terradune/releases/tag/v1.0.5">GitHub release</a></p>
     <figure><img src="../assets/plan-v1.0.5.jpg" width="1280" height="800" alt="Terradune v1.0.5 Plan view filtered to four updates, showing only four matching resource types" loading="lazy"><figcaption>Resource types and counts now follow the active Plan filters.</figcaption></figure>
