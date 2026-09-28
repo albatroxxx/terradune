@@ -37,7 +37,19 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - run: python3 -m unittest discover -s scripts -p 'test_ci.py' -v
+      - run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Install pre-commit
+        run: |
+          python3 -m venv "$RUNNER_TEMP/pre-commit"
+          "$RUNNER_TEMP/pre-commit/bin/python" -m pip install pre-commit==4.6.2
+      - name: Fast repository checks
+        env:
+          # The Go matrix already enforces gofmt. Do not install Go for site/docs-only CI.
+          SKIP: gofmt
+        run: '"$RUNNER_TEMP/pre-commit/bin/pre-commit" run --all-files --show-diff-on-failure'
       - id: select
         run: python3 scripts/ci.py
         env:

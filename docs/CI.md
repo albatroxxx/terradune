@@ -15,8 +15,11 @@ conclusion, including when some expensive jobs are intentionally skipped.
 | Root README/changelog/security/license, `docs/**`, issue templates | Selection tests and Semgrep only |
 | Go/Node dependencies, version, workflows, CI scripts, unknown paths | Full suite |
 
-Selection tests, Semgrep (Go/JavaScript/secrets rules), and the final gate run
-for every change. Mixed changes select the union of their checks. Go security
+Selection/source-check tests, fast pre-commit hooks, Semgrep
+(Go/JavaScript/secrets rules), and the final gate run for every change.
+The fast hooks do not install Go; formatting remains in the Go matrix.
+See [contributor checks](CONTRIBUTING.md) for local setup and hook coverage.
+Mixed changes select the union of their checks. Go security
 includes gosec, staticcheck, and govulncheck; gosec runs once and produces SARIF
 while still failing on findings. Optional SARIF upload is not the security gate.
 
