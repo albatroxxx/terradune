@@ -13,6 +13,13 @@ Terradune turns initialized Terraform workspaces into a local plan review interf
 [![Go Reference](https://pkg.go.dev/badge/github.com/albatroxxx/terradune.svg)](https://pkg.go.dev/github.com/albatroxxx/terradune)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/albatroxxx/terradune/badge)](https://scorecard.dev/viewer/?uri=github.com/albatroxxx/terradune)
+[![CodeQL](https://github.com/albatroxxx/terradune/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/albatroxxx/terradune/actions/workflows/codeql.yml?query=branch%3Amain)
+
+[What these security signals mean](docs/SECURITY-SIGNALS.md): automated checks,
+not a security certification. CodeQL's badge reports scan execution, not the
+absence of findings.
+
 ![Terradune Resource Map showing dependency lines between VPCs, subnets, route tables, and gateways](site/assets/resource-map-v1.0.5.jpg)
 
 **[Website](https://albatroxxx.github.io/terradune/) · [Installation guide](https://albatroxxx.github.io/terradune/docs/) · [Latest release](https://github.com/albatroxxx/terradune/releases/latest)**
