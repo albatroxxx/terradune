@@ -48,6 +48,23 @@ static site before publishing. It does not wait for the post-merge CI run;
 required PR checks are the pre-merge safeguard. Direct pushes must not be used
 to bypass that validation. Release publication depends on the full CI workflow.
 
+## Security Signals
+
+[CodeQL](../.github/workflows/codeql.yml) is a separate workflow for source PRs
+and `main`, plus weekly and manual scans. Markdown, documentation, images, and
+CSS-only changes skip it. It analyzes Go, JavaScript/TypeScript, Python and
+GitHub Actions with `security-extended` queries. Successful analysis uploads
+findings; it does not itself assert zero vulnerabilities. It is not part of the
+required `CI result` gate. Review its alerts and run results when merging code.
+
+[Scorecard](../.github/workflows/scorecard.yml) publishes on every `main` push
+and weekly, because repository policy and documentation changes can affect its
+findings. It never publishes from untrusted pull requests and is not a merge
+gate. Its OIDC publishing identity needs no personal token.
+
+Both badges describe the default branch, not the last stable release. See
+[Security Signals](SECURITY-SIGNALS.md) for evidence links and limitations.
+
 ## Local Validation
 
 ```sh

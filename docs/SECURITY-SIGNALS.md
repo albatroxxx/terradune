@@ -49,6 +49,8 @@ The [Best Practices program](https://www.bestpractices.dev/en/criteria/0)
 is a free, evidence-backed **self-certification**. Terradune does not claim a
 passing badge until its project entry has been completed and the requirements
 are met. Automated scan results alone cannot establish all the criteria.
+The [Terradune assessment](https://www.bestpractices.dev/en/projects/15009)
+is in progress; its completion percentage is not a security score or approval.
 
 Evidence available for an assessment includes:
 
