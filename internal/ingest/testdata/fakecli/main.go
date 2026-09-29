@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -47,9 +48,7 @@ func main() {
 		}
 		for _, arg := range os.Args[2:] {
 			if path, ok := strings.CutPrefix(arg, "-out="); ok {
-				if err := os.WriteFile(path, []byte("synthetic plan"), 0o600); err != nil {
-					panic(err)
-				}
+				checkPlanFile(path, true)
 			}
 		}
 		os.Exit(2) // Terraform's detailed exit code for a plan with changes.
@@ -58,14 +57,40 @@ func main() {
 			fmt.Println("invalid plan")
 			return
 		}
-		if _, err := os.Stat(os.Args[len(os.Args)-1]); err != nil {
-			panic(err)
-		}
+		checkPlanFile(os.Args[len(os.Args)-1], false)
 		fmt.Println(`{"format_version":"1.2","terraform_version":"1.16.2","resource_changes":[{"address":"terraform_data.sample","mode":"managed","type":"terraform_data","name":"sample","provider_name":"terraform.io/builtin/terraform","change":{"actions":["create"],"before":null,"after":{"input":"example"}}}]}`)
 	case "graph":
 		fmt.Println(`digraph { "[root] terraform_data.sample (expand)"; }`)
 	default:
 		fmt.Fprintln(os.Stderr, "unexpected command: "+command)
 		os.Exit(1)
+	}
+}
+
+// Even a test executable must not write to arbitrary command-line paths.
+func checkPlanFile(path string, create bool) {
+	root, err := os.OpenRoot(os.TempDir())
+	if err != nil {
+		panic(err)
+	}
+	defer root.Close()
+	relative, err := filepath.Rel(os.TempDir(), path)
+	if err != nil {
+		panic(err)
+	}
+	parts := strings.Split(filepath.ToSlash(relative), "/")
+	if len(parts) != 2 || !strings.HasPrefix(parts[0], "terradune-plan-") || parts[1] != "tfplan" {
+		panic("unexpected temporary plan path")
+	}
+	flags := os.O_RDONLY
+	if create {
+		flags = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
+	}
+	f, err := root.OpenFile(relative, flags, 0o600)
+	if err != nil {
+		panic(err)
+	}
+	if err := f.Close(); err != nil {
+		panic(err)
 	}
 }
