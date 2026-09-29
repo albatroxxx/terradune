@@ -46,11 +46,11 @@ application's trust boundary.
 ## OpenSSF Best Practices
 
 The [Best Practices program](https://www.bestpractices.dev/en/criteria/0)
-is a free, evidence-backed **self-certification**. Terradune does not claim a
-passing badge until its project entry has been completed and the requirements
-are met. Automated scan results alone cannot establish all the criteria.
-The [Terradune assessment](https://www.bestpractices.dev/en/projects/15009)
-is in progress; its completion percentage is not a security score or approval.
+is a free, evidence-backed **self-certification**. The
+[Terradune assessment](https://www.bestpractices.dev/en/projects/15009/passing)
+earned the **Passing** badge on 2026-09-29. Its 100% completion is not a security
+score, independent audit, or claim of 100% test coverage. The README badge uses
+the project's live status endpoint, not a static passing image.
 
 Evidence available for an assessment includes:
 
@@ -63,9 +63,29 @@ Evidence available for an assessment includes:
 - [Release notes](releases/), [release policy](RELEASING.md), and
   [private vulnerability reporting](../SECURITY.md).
 
-Before claiming passing, the maintainer must review every criterion, confirm
-secure-development knowledge and private-report response history, audit open
-security findings and credential alerts, and justify any not-applicable
-answers. Public issue-response history and release identifier uniqueness also
-need review; a passing build is not evidence for either. Historical version
-uniqueness must not be assumed satisfied from today's release workflow alone.
+The assessment combines repository evidence, an audit of all seven stable
+release tags against the commits recorded by the public Go proxy, and explicit
+maintainer attestations of secure-development knowledge and no private
+vulnerability reports received during the assessment period. Reassess the
+report-response criterion when a report arrives; the badge does not create a
+response-time SLA.
+
+The optional `test_most` recommendation is recorded as **unmet**, rather than
+claiming comprehensive coverage. On commit
+`e6b4059d42a3d8f1958d2ff5324c64575c7366a0`, a local Go unit-test profile measured
+67.4% statement coverage. That does not measure branch or input-field coverage
+and excludes the separately configured real-CLI and browser CI suites. Improve
+coverage of the CLI entry point, ingestion, and streaming responses before
+revisiting this recommendation. Passing permits unmet suggestions; required
+criteria still need evidence or an allowed not-applicable justification.
+
+Reproduce the Go statement-coverage measurement with:
+
+```sh
+go test -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out
+```
+
+Keep the public assessment current as release practices, reporting history,
+security findings, and tests change. Automated scans cannot establish personal
+maintainer knowledge or private-report response times.
