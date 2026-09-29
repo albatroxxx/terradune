@@ -128,8 +128,11 @@ func TestRunAndCLI(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer ln.Close()
-		if err := run(context.Background(), root, "127.0.0.1", ln.Addr().(*net.TCPAddr).Port, false, ingest.Options{}); err == nil || !strings.Contains(err.Error(), "already in use") {
+		if err := run(context.Background(), root, "127.0.0.1", ln.Addr().(*net.TCPAddr).Port, false, ingest.Options{}); err == nil {
 			t.Fatalf("occupied port: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(root, ".test-cli-log")); !os.IsNotExist(err) {
+			t.Fatalf("planning must not start when the listener cannot bind: %v", err)
 		}
 	})
 	for _, mode := range []string{"success", "plan-error"} {

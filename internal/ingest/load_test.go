@@ -43,6 +43,11 @@ func TestLoadProcess(t *testing.T) {
 			if err := os.WriteFile(vars, []byte("label = \"test\""), 0o600); err != nil {
 				t.Fatal(err)
 			}
+			secondVars := filepath.Join(root, "overrides.tfvars")
+			if err := os.WriteFile(secondVars, []byte("count = 2"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			t.Chdir(root)
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			// Cancel only once the child has entered plan, not during process startup.
@@ -62,7 +67,7 @@ func TestLoadProcess(t *testing.T) {
 				}()
 			}
 			inputs := []string{"label=hello world; $(not-a-shell)", "count=2"}
-			inv, err := Load(ctx, root, Options{VarFiles: []string{vars}, Vars: inputs, Refresh: mode == "success"})
+			inv, err := Load(ctx, root, Options{VarFiles: []string{filepath.Base(vars), secondVars}, Vars: inputs, Refresh: mode == "success"})
 			if cancelDone != nil {
 				<-cancelDone
 			}
@@ -113,10 +118,17 @@ func TestLoadProcess(t *testing.T) {
 					t.Fatalf("wrong process environment: %+v", entry)
 				}
 				if entry.Args[0] == "plan" {
-					for _, want := range []string{"-input=false", "-lock-timeout=30s", "-var-file=" + vars, inputs[0], inputs[1]} {
+					resolvedVars, err := filepath.Abs(filepath.Base(vars))
+					if err != nil {
+						t.Fatal(err)
+					}
+					for _, want := range []string{"-input=false", "-lock-timeout=30s", "-var-file=" + resolvedVars, "-var-file=" + secondVars, inputs[0], inputs[1]} {
 						if !slices.Contains(entry.Args, want) {
 							t.Errorf("missing intact argument %q in %q", want, entry.Args)
 						}
+					}
+					if slices.Index(entry.Args, "-var-file="+resolvedVars) >= slices.Index(entry.Args, "-var-file="+secondVars) {
+						t.Error("variable-file precedence was reordered")
 					}
 					refresh := "-refresh=false"
 					if mode == "success" {
