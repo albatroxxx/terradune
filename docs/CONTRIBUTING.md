@@ -1,5 +1,9 @@
 # Contributor Checks
 
+See [test coverage](TESTING.md) for local test commands, the behavior/input
+coverage map, and CI's per-package 85% Go statement-coverage floor. Add focused
+success, failure, and boundary tests alongside behavior changes.
+
 ## Pre-Commit Checks
 
 Development prerequisites: Python 3.10+, Go from `go.mod`, and Node.js 22+.

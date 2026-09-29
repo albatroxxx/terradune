@@ -70,21 +70,15 @@ vulnerability reports received during the assessment period. Reassess the
 report-response criterion when a report arrives; the badge does not create a
 response-time SLA.
 
-The optional `test_most` recommendation is recorded as **unmet**, rather than
-claiming comprehensive coverage. On commit
-`e6b4059d42a3d8f1958d2ff5324c64575c7366a0`, a local Go unit-test profile measured
-67.4% statement coverage. That does not measure branch or input-field coverage
-and excludes the separately configured real-CLI and browser CI suites. Improve
-coverage of the CLI entry point, ingestion, and streaming responses before
-revisiting this recommendation. Passing permits unmet suggestions; required
-criteria still need evidence or an allowed not-applicable justification.
-
-Reproduce the Go statement-coverage measurement with:
-
-```sh
-go test -coverprofile=coverage.out ./...
-go tool cover -func=coverage.out
-```
+The optional `test_most` recommendation is supported by the
+[test coverage report and behavior map](TESTING.md): expanded CLI, ingestion,
+and streaming-response tests raised measured Go statement coverage from 67.4%
+to 91.1%. CI enforces an 85% floor for each production Go package. The separate
+real-CLI and browser suites cover additional behavior, inputs, and failure
+paths. This is evidence of broad coverage, not a claim that every branch or
+input combination is tested. See the report for reproduction commands,
+measurement scope, and remaining gaps. Passing permits unmet suggestions;
+required criteria still need evidence or an allowed not-applicable justification.
 
 Keep the public assessment current as release practices, reporting history,
 security findings, and tests change. Automated scans cannot establish personal
