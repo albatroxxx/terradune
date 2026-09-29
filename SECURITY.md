@@ -17,3 +17,6 @@ Use [GitHub private vulnerability reporting](https://github.com/albatroxxx/terra
 - Embedded UI assets avoid CDN requests. Terraform itself still makes network requests required by the configuration.
 
 CI runs static analysis and dependency vulnerability checks. A passing scan is a point-in-time signal, not a guarantee that no vulnerabilities exist. Weekly CI and dependency updates keep the checks active after release.
+
+See [Security Signals](docs/SECURITY-SIGNALS.md) for the scope and limitations
+of Scorecard, CodeQL, dependency checks, and the Best Practices assessment.
