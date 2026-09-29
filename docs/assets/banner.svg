@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="280" viewBox="0 0 1200 280" role="img" aria-labelledby="title desc">
+  <title id="title">Terradune</title>
+  <desc id="desc">Terraform plans, resources, and relationships.</desc>
+  <rect width="1200" height="280" fill="#F3F8F5"/>
+  <g transform="translate(234 66) scale(2.25)" fill="none">
+    <rect width="64" height="64" rx="14" fill="#143E35"/>
+    <path d="M12 24 32 13l20 11-20 11L12 24Z" fill="#B4E9CE"/>
+    <path d="m12 33 20 11 20-11M12 42l20 11 20-11" stroke="#B4E9CE" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M32 27v17" stroke="#FFF" stroke-width="3"/>
+    <circle cx="32" cy="25" r="4" fill="#FFF"/>
+    <circle cx="32" cy="44" r="3" fill="#FFF"/>
+  </g>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="418" y="148" fill="#143E35" font-size="88" font-weight="700">Terradune</text>
+    <text x="422" y="193" fill="#44675C" font-size="28">Terraform plans. Resources. Relationships.</text>
+  </g>
+</svg>

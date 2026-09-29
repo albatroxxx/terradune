@@ -1,4 +1,7 @@
-<img src="internal/server/assets/logo.svg" alt="Terradune logo" width="64" height="64">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
+  <img src="docs/assets/banner.svg" alt="Terradune: Terraform plans, resources, and relationships" width="100%">
+</picture>
 
 # Terradune
 
