@@ -160,7 +160,15 @@ jobs:
           if [ -n "$unformatted" ]; then
             echo "These files need gofmt:"; echo "$unformatted"; exit 1
           fi
-      - run: go test -race -count=1 ./...
+      - run: go test -race -count=1 -covermode=atomic -coverprofile=coverage.out ./...
+      - name: Enforce package coverage
+        run: python3 scripts/check-coverage.py coverage.out | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: go-coverage-${{ matrix.os }}
+          path: coverage.out
+          retention-days: 7
 
   cli:
     needs: changes
