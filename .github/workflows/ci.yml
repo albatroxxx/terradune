@@ -163,6 +163,12 @@ jobs:
       - run: go test -race -count=1 -covermode=atomic -coverprofile=coverage.out ./...
       - name: Enforce package coverage
         run: python3 scripts/check-coverage.py coverage.out | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Fuzz each target briefly
+        # The parsers that read Terraform's output and the HTTP boundary are
+        # mutated for a few seconds each; the seeds already ran above as
+        # ordinary tests. One platform is enough for platform-neutral code.
+        if: runner.os == 'Linux'
+        run: python3 scripts/fuzz.py --fuzztime 10s
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
