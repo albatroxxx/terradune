@@ -38,10 +38,11 @@ function mapResourceSpec(n) {
 
 function compactResourceHTML(n) {
   return `<div class="card ${n.status}" data-id="${esc(n.id)}" data-ws="${esc(RENDER_WS)}" data-compact="true" title="${esc(n.id)}">
-    <button type="button" class="card-main" aria-pressed="false" aria-label="${esc(`Pin path: ${displayName(n)}, ${label(n.type)}, ${ACTION_NAMES[n.status]}`)}">
+    <button type="button" class="card-main" aria-pressed="false">
       <span class="ico">${iconSVG(n.type)}</span><span class="n">${esc(displayName(n))}</span>
       <span class="compact-spec">${esc(mapResourceSpec(n) || label(n.type))}</span>
       <span class="status-dot" title="${ACTION_NAMES[n.status]}" aria-hidden="true"></span>
+      <span class="sr-only">${mapResourceSpec(n) ? ', ' + esc(label(n.type)) : ''}, ${esc(ACTION_NAMES[n.status])}, pin path</span>
     </button>
     <button type="button" class="card-detail" title="View details" aria-label="${esc(`View details for ${n.id}`)}">&#9432;</button>
   </div>`;

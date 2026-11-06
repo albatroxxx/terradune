@@ -3,7 +3,9 @@
 package server
 
 import (
+	"crypto/sha256"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"net"
@@ -18,6 +20,57 @@ import (
 
 //go:embed index.html assets
 var static embed.FS
+
+// contentSecurityPolicy confines the page to its own origin: scripts, styles,
+// fonts, images and connections come only from this server, and nothing may
+// frame it or send a form anywhere. The page's own inline <script> and <style>
+// blocks are allowed by their hashes, computed from the embedded file, so a
+// rebuilt page keeps working while anything injected into it does not run.
+// Plan data reaches the browser escaped; this is the layer behind that.
+var contentSecurityPolicy = func() string {
+	page, err := static.ReadFile("index.html")
+	if err != nil {
+		page = nil // no inline allowance at all; the page cannot be served either
+	}
+	return buildContentSecurityPolicy(page)
+}()
+
+// inlineHashes lists CSP source expressions for every bare <tag>…</tag> block
+// in page. A tag with attributes, such as <script src="…">, is external and
+// already covered by 'self'.
+func inlineHashes(page []byte, tag string) []string {
+	open, end := "<"+tag+">", "</"+tag+">"
+	var hashes []string
+	rest := string(page)
+	for {
+		i := strings.Index(rest, open)
+		if i < 0 {
+			return hashes
+		}
+		rest = rest[i+len(open):]
+		j := strings.Index(rest, end)
+		if j < 0 {
+			return hashes
+		}
+		sum := sha256.Sum256([]byte(rest[:j]))
+		hashes = append(hashes, "'sha256-"+base64.StdEncoding.EncodeToString(sum[:])+"'")
+		rest = rest[j+len(end):]
+	}
+}
+
+func buildContentSecurityPolicy(page []byte) string {
+	return strings.Join([]string{
+		"default-src 'none'",
+		strings.TrimSpace("script-src 'self' " + strings.Join(inlineHashes(page, "script"), " ")),
+		strings.TrimSpace("style-src 'self' " + strings.Join(inlineHashes(page, "style"), " ")),
+		"img-src 'self'",
+		"font-src 'self'",
+		"connect-src 'self'",
+		"base-uri 'none'",
+		"form-action 'none'",
+		"frame-ancestors 'none'",
+	}, "; ")
+}
 
 // Workspace is one Terraform working directory's contribution to the page.
 // A failed re-plan keeps the previous nodes and edges and sets Error, so the
@@ -177,6 +230,8 @@ func (s *Server) Handler() http.Handler {
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
+		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+		w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
 		host := r.Host
 		if h, _, err := net.SplitHostPort(host); err == nil {
 			host = h

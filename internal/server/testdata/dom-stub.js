@@ -131,6 +131,7 @@ var document = {
   },
   createElementNS(ns, name) { return __fakeEl(name, name); },
   createElement(name) { return __fakeEl(name, name); },
+  createTextNode(text) { var node = __fakeEl('#text', '#text'); node.textContent = text; return node; },
   addEventListener() {},
 };
 var window = __fakeEl('window');
