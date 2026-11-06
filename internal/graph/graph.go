@@ -89,7 +89,7 @@ func BuildWithDOT(plan *tfjson.Plan, dot []byte) *Graph {
 	// Config address -> all live instance addresses of that resource.
 	instances := map[string][]string{}
 	for _, rc := range plan.ResourceChanges {
-		if rc == nil || rc.Mode != tfjson.ManagedResourceMode || rc.Change == nil {
+		if !managed(rc) {
 			continue
 		}
 		g.Nodes = append(g.Nodes, Node{
@@ -771,13 +771,21 @@ func changeAttrs(rc *tfjson.ResourceChange) map[string]interface{} {
 	return nil
 }
 
+// managed reports whether a resource change is a managed resource instance
+// that Terraform named. A change without an address is not something
+// Terraform wrote; fuzzing showed a malformed plan would otherwise become a
+// nameless node and an edge to nowhere.
+func managed(rc *tfjson.ResourceChange) bool {
+	return rc != nil && rc.Address != "" && rc.Mode == tfjson.ManagedResourceMode && rc.Change != nil
+}
+
 // idOwners maps every id and ARN in the plan back to the resource that owns
 // it. Once infrastructure exists these are concrete values, which is what
 // makes matching against them a fact rather than a guess.
 func idOwners(plan *tfjson.Plan) map[string]string {
 	owners := map[string]string{}
 	for _, rc := range plan.ResourceChanges {
-		if rc.Mode != tfjson.ManagedResourceMode || rc.Change == nil {
+		if !managed(rc) {
 			continue
 		}
 		attrs := changeAttrs(rc)
@@ -823,7 +831,7 @@ func collectStrings(v interface{}, out map[string]bool) {
 func (g *Graph) addIDEdges(plan *tfjson.Plan, seen map[Edge]bool) {
 	owners := idOwners(plan)
 	for _, rc := range plan.ResourceChanges {
-		if rc.Mode != tfjson.ManagedResourceMode || rc.Change == nil {
+		if !managed(rc) {
 			continue
 		}
 		attrs := changeAttrs(rc)

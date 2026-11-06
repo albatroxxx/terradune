@@ -27,7 +27,7 @@ type Detail struct {
 func BuildDetails(plan *tfjson.Plan) map[string]*Detail {
 	out := map[string]*Detail{}
 	for _, rc := range plan.ResourceChanges {
-		if rc.Mode != tfjson.ManagedResourceMode || rc.Change == nil {
+		if !managed(rc) {
 			continue
 		}
 		change, err := sanitize.SanitizeChange(rc.Change, "(sensitive value)")
