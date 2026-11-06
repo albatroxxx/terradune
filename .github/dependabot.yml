@@ -4,11 +4,23 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      go:
+        patterns: ["*"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      # Actions move together. A codeql-action init step bumped without its
+      # analyze step fails with "Loaded a configuration file for version
+      # 4.39.1, but running version 4.38.2" (pull requests #65 and #66).
+      actions:
+        patterns: ["*"]
   - package-ecosystem: npm
     directory: /e2e
     schedule:
       interval: weekly
+    groups:
+      browser-tests:
+        patterns: ["*"]
