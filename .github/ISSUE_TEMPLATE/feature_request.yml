@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest an idea or an improvement.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Terradune reviews what a Terraform plan states;
+        the [coverage table](https://github.com/albatroxxx/terradune#coverage) and the
+        [makeover plan](https://github.com/albatroxxx/terradune/blob/main/docs/MAKEOVER.md)
+        say what is supported today and what is planned.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to review, and what gets in the way?
+      description: Describe the plan, the resources and the question you are asking of them, not only the solution you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like Terradune to do?
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: A synthetic example
+      description: A small configuration, or one of the bundled examples, that shows the case. Never paste real state, credentials or account identifiers.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have considered
+  - type: markdown
+    attributes:
+      value: |
+        A relationship Terradune cannot read from the plan is not drawn, by design: a line reads as a fact.
+        If your request is about a missing line, say which plan field or graph edge would justify it.

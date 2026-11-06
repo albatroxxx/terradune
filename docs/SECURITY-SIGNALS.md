@@ -13,7 +13,14 @@ to `main` and weekly, using GitHub's short-lived OIDC identity. Public results
 and badges can lag behind a completed run while the service refreshes.
 
 Read the individual findings and scan date, not just the aggregate score.
-Some checks are heuristic or not applicable to this project. Classic branch
+Some checks are heuristic or not applicable to this project: *Packaging* looks
+for a container or package publisher and Terradune ships only through
+`go install`; *Code-Review* counts approvals from a second person, which a
+one-maintainer project cannot produce; *Maintained* needs ninety days of
+history. The checks the repository can act on, it does: every action and
+scanner is pinned to a commit, the parsers and the HTTP boundary have fuzz
+targets, and the advisory the *Vulnerabilities* check reported was closed in
+1.0.7. Classic branch
 protection may be unavailable to the default workflow token; a missing result
 is not proof that protection is disabled. We do not give the scanner an admin
 token or weaken repository controls to improve a number.
@@ -32,7 +39,8 @@ A green workflow badge means analysis completed successfully. It does **not**
 mean the report contains no vulnerabilities. Review new alerts and record any
 false-positive dismissal with its justification. Never use blanket exclusions
 just to obtain a green badge. The existing gosec, govulncheck, staticcheck, and
-Semgrep checks remain in CI and release validation.
+Semgrep checks remain in CI and release validation, each pinned to a commit
+([CI.md](CI.md#pinned-tools)).
 
 ## Dependency And Secret Checks
 
@@ -56,7 +64,7 @@ Evidence available for an assessment includes:
 
 - [README](../README.md), [website documentation](https://albatroxxx.github.io/terradune/docs/),
   [Apache-2.0 license](../LICENSE), and the public issue/PR history.
-- [Contributor checks](CONTRIBUTING.md), tests beside the Go packages, and
+- [Contributor checks](CHECKS.md), tests beside the Go packages, and
   [browser tests](../e2e/README.md).
 - [CI](../.github/workflows/ci.yml), including race tests and static analysis,
   and [release validation](../.github/workflows/release.yml).

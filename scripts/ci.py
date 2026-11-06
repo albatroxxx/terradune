@@ -27,6 +27,8 @@ def select(paths, full=False):
             selected.update(("test", "browser", "cli", "sast"))
         elif path.startswith(("docs/", ".github/ISSUE_TEMPLATE/")) or path in (
             "README.md", "CHANGELOG.md", "SECURITY.md", "LICENSE", "e2e/README.md",
+            "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "GOVERNANCE.md",
+            ".github/pull_request_template.md",
         ):
             continue
         else:
