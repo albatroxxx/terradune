@@ -63,6 +63,21 @@ for (const width of [320, 720, 721, 1440, 1920]) {
   });
 }
 
+for (const route of ['./', 'docs/', 'releases/']) {
+  test(`${route} keeps its contrast in the dark colour scheme`, async ({ page }, testInfo) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(route);
+    await page.evaluate(() => document.fonts.ready);
+    const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(background).not.toBe('rgb(255, 255, 255)');
+    const accessibility = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+    expect(accessibility.violations).toEqual([]);
+    await page.screenshot({ path: testInfo.outputPath('dark.png'), fullPage: true });
+  });
+}
+
 test('keyboard skip link reaches the main content', async ({ page }) => {
   await page.goto('./');
   await page.keyboard.press('Tab');
