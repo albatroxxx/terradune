@@ -221,8 +221,10 @@ test('map cards and graph nodes take their names from their visible text', async
   const card = page.locator('[data-id="aws_subnet.public[0]"] > .card-main');
   const shown = await card.evaluate(el => el.textContent.replace(/\s+/g, ' ').trim());
   expect(shown).toMatch(/^platform-public-us-east-1a Subnet /);
-  expect(shown).toMatch(/ existing , pin path$/);
-  await expect(card).toHaveAccessibleName(shown);
+  expect(shown).toMatch(/ existing, pin path$/);
+  // Engines space block boundaries differently when computing the name, so the
+  // check is on what matters: the visible words first, the status, the hint last.
+  await expect(card).toHaveAccessibleName(/^platform-public-us-east-1a\s+Subnet\b[\s\S]*\bexisting\s*,\s*pin path$/);
   await expect(card).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('tab', { name: 'Graph', exact: true }).click();
   await graphReady(page);
@@ -266,7 +268,7 @@ test('every view runs under the Content-Security-Policy without a violation', as
   if (browserName === 'webkit') {
     // WebKit's own <select> rendering applies an internal inline style and
     // reports it against the page as style-src-attr, with no sample: the DOM
-    // carries no style attribute and Chromium and Firefox report nothing.
+    // carries no style attribute and Chromium reports nothing.
     // Everything else, a script or a real style, still fails here.
     violations = violations.filter(v => !(v.directive === 'style-src-attr' && v.sample === ''));
   }

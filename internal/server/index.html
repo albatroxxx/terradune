@@ -988,9 +988,7 @@ function cardHTML(n, detail, nested, inventory = false) {
       <span class="ico">${iconSVG(n.type)}</span>
       <span class="n">${esc(nice)}</span>
       <span class="d"><span>${esc(label(n.type))}${det ? ' · ' + esc(det) : ''}</span>
-        <span class="st">${esc(n.status)}</span></span>
-      ${changeNote ? `<span class="attached-change-note">${esc(changeNote)}</span>` : ''}
-      <span class="sr-only">, pin path</span>
+        <span class="st">${esc(n.status)}</span></span>${changeNote ? ` <span class="attached-change-note">${esc(changeNote)}</span>` : ''}<span class="sr-only">, pin path</span>
     </button>
     <button type="button" class="card-detail" aria-label="${esc(`View details for ${n.id}`)}"
       title="View details">&#9432;</button>
