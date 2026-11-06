@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.0.7
+
+### Security
+
+- Releases build with Go 1.27.3. Go 1.27.1 carried four standard-library
+  vulnerabilities in `net/http` and its HTTP/2 implementation that the server
+  reaches (GO-2026-6611, GO-2026-6612, GO-2026-6613, GO-2026-6617); the `go`
+  directive names the patched toolchain, so `go install` builds every copy
+  with it. `golang.org/x/text` moves to 0.41.0, closing GO-2026-6629.
+- The server sends a Content-Security-Policy that allows only its own origin
+  and the page's own inline script and style blocks, by hash, plus
+  `Cross-Origin-Opener-Policy`. Inline style attributes in the page became
+  classes so the policy can forbid them outright. Plan values were already
+  escaped; this is the layer behind that.
+- Fuzz targets cover the DOT and plan parsers, the listen address, the Host
+  allowlist and the resource lookup, and run briefly in CI.
+
+### Fixed
+
+- Map cards and graph nodes take their accessible names from their visible
+  text, as WCAG 2.5.3 asks, instead of an `aria-label` that replaced it; the
+  pin hint and the workspace are read after the name. axe-core 4.14 flags
+  the previous names.
+
+### Development
+
+- Every GitHub Action and scanner in CI is pinned to a commit; Dependabot
+  proposes grouped updates. terraform-exec 0.26.0, terraform-json 0.29.0,
+  Playwright 1.64.1 and axe-core 4.14.0.
+- A root `CONTRIBUTING.md`, `GOVERNANCE.md`, `CODE_OF_CONDUCT.md`, a pull
+  request template, a feature request form, a threat model and a security
+  policy with scope and advisory triage.
+
 ## 1.0.6
 
 ### Fixed
