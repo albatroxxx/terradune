@@ -29,7 +29,7 @@ CodeQL's badge reports scan execution, not the absence of findings.
 
 ### Install Go
 
-Terradune requires **Go 1.27.1 or newer** and a separate
+Terradune requires **Go 1.27.3 or newer** and a separate
 [Terraform](https://developer.hashicorp.com/terraform/install) or
 [OpenTofu](https://opentofu.org/docs/intro/install/) CLI.
 
@@ -38,7 +38,7 @@ Terradune requires **Go 1.27.1 or newer** and a separate
    On Linux, follow the [official installation steps](https://go.dev/doc/install)
    to install into a fresh `/usr/local/go` directory and add
    `/usr/local/go/bin` to your PATH.
-3. Reopen your terminal and run `go version`. Check that it is at least 1.27.1.
+3. Reopen your terminal and run `go version`. Check that it is at least 1.27.3.
 
 ### Install Terradune
 
