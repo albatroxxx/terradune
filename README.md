@@ -3,42 +3,83 @@
   <img src="docs/assets/banner.svg" alt="Terradune: Terraform plans, resources, and relationships" width="100%">
 </picture>
 
-# Terradune
+<h1 align="center">Terradune</h1>
 
-**Review Terraform plans as resources and relationships.**
+<p align="center"><strong>Review Terraform plans as resources and relationships, on your own machine.</strong></p>
 
-Terradune turns initialized Terraform workspaces into a local plan review interface. See what will be created, changed, replaced, or destroyed; inspect configuration; and follow the dependencies behind each resource.
+<p align="center">
+  <a href="https://albatroxxx.github.io/terradune/docs/">Install</a> ·
+  <a href="https://albatroxxx.github.io/terradune/">Website</a> ·
+  <a href="https://albatroxxx.github.io/terradune/releases/">Releases</a> ·
+  <a href="docs/THREAT-MODEL.md">Threat model</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
 
-[![CI](https://github.com/albatroxxx/terradune/actions/workflows/ci.yml/badge.svg)](https://github.com/albatroxxx/terradune/actions/workflows/ci.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/albatroxxx/terradune.svg)](https://pkg.go.dev/github.com/albatroxxx/terradune)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+<p align="center">
+  <a href="https://github.com/albatroxxx/terradune/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/albatroxxx/terradune?sort=semver&color=174f40"></a>
+  <a href="https://github.com/albatroxxx/terradune/actions/workflows/ci.yml?query=branch%3Amain"><img alt="CI" src="https://github.com/albatroxxx/terradune/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/albatroxxx/terradune/actions/workflows/codeql.yml?query=branch%3Amain"><img alt="CodeQL" src="https://github.com/albatroxxx/terradune/actions/workflows/codeql.yml/badge.svg?branch=main"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/albatroxxx/terradune"><img alt="OpenSSF Scorecard" src="https://api.scorecard.dev/projects/github.com/albatroxxx/terradune/badge"></a>
+  <a href="https://www.bestpractices.dev/projects/15009"><img alt="OpenSSF Best Practices" src="https://www.bestpractices.dev/projects/15009/badge"></a>
+  <a href="https://pkg.go.dev/github.com/albatroxxx/terradune"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/albatroxxx/terradune.svg"></a>
+  <a href="go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/albatroxxx/terradune?logo=go&color=1b2027"></a>
+  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-174f40"></a>
+</p>
 
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/albatroxxx/terradune/badge)](https://scorecard.dev/viewer/?uri=github.com/albatroxxx/terradune)
-[![CodeQL](https://github.com/albatroxxx/terradune/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/albatroxxx/terradune/actions/workflows/codeql.yml?query=branch%3Amain)
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15009/badge)](https://www.bestpractices.dev/projects/15009)
-
-[What these security signals mean](docs/SECURITY-SIGNALS.md): automated scans
-and evidence-backed self-certification, not an independent security audit.
-CodeQL's badge reports scan execution, not the absence of findings.
+Terradune turns initialized Terraform workspaces into a local plan review
+interface. See what will be created, changed, replaced, or destroyed; inspect
+configuration; and follow the dependencies behind each resource. It runs
+`plan`, `show` and `graph`, never `apply`, and serves the result to your
+browser on loopback. Nothing leaves your machine.
 
 ![Terradune Resource Map showing dependency lines between VPCs, subnets, route tables, and gateways](site/assets/resource-map-v1.0.5.jpg)
 
-**[Website](https://albatroxxx.github.io/terradune/) · [Installation guide](https://albatroxxx.github.io/terradune/docs/) · [Latest release](https://github.com/albatroxxx/terradune/releases/latest)**
+## Why Terradune
 
-## Start Reviewing
+- **A plan is a list; infrastructure is a picture.** The Resource Map lays
+  AWS networking out the way the console does, so a route table change is seen
+  next to the subnets it serves, and a load balancer next to its listeners,
+  rules and targets.
+- **Every resource, every type.** The Plan register lists each managed
+  resource once per workspace, destructive changes first, with the exact
+  before and after values. Unfamiliar resource types render generically; no
+  AWS allowlist decides what you may review.
+- **Only what the plan states.** A line between two resources is a fact the
+  plan or Terraform's own graph supports. Where Terraform cannot say which
+  instance a dependency points at, Terradune draws nothing.
+- **Local and honest about it.** Loopback only, no account, no upload, no
+  telemetry. Values Terraform marks sensitive are masked everywhere they
+  could appear; the [threat model](docs/THREAT-MODEL.md) says what that does
+  and does not protect.
+
+## What you get
+
+| Capability | What it does |
+|---|---|
+| **Resource Map** | VPCs, subnets, route tables, gateways and load balancers grouped by role, with direct and indirect associations drawn between them. Pin a path, focus its dependencies, open the VPC inventory. |
+| **Plan** | One row per managed resource and workspace. Filter by action, exact resource type, workspace or search; **Changes only** hides what is unchanged. |
+| **Resource details** | **What changes** with explicit Before and After columns, then configuration, attached resources and dependencies. Unknown values stay "known after apply"; sensitive values stay masked, nested ones included. |
+| **Graph** | The dependency neighbourhood of one resource, or the whole graph, routed by ELK, zoomable and keyboard-operable. |
+| **Live refresh** | Edits to `.tf`, `.tfvars` and `.tfvars.json` files replan the workspace they belong to; a shared file replans them all. Focus and selection survive the redraw. |
+| **Terraform or OpenTofu** | `terraform` when installed, `tofu` otherwise; the header names which one produced the plan. |
+| **Several workspaces** | Point it at a directory and every initialized workspace beneath it is planned, scoped and filtered separately. |
+
+## Start reviewing
+
+Terradune is one Go binary. It needs **Go 1.27.3 or newer** to install, and a
+[Terraform](https://developer.hashicorp.com/terraform/install) or
+[OpenTofu](https://opentofu.org/docs/intro/install/) CLI on your PATH to run.
 
 ### Install Go
-
-Terradune requires **Go 1.27.1 or newer** and a separate
-[Terraform](https://developer.hashicorp.com/terraform/install) or
-[OpenTofu](https://opentofu.org/docs/intro/install/) CLI.
 
 1. Download Go for your operating system and architecture from [go.dev/dl](https://go.dev/dl/).
 2. On macOS, run the package installer. On Windows, run the MSI installer.
    On Linux, follow the [official installation steps](https://go.dev/doc/install)
    to install into a fresh `/usr/local/go` directory and add
    `/usr/local/go/bin` to your PATH.
-3. Reopen your terminal and run `go version`. Check that it is at least 1.27.1.
+3. Reopen your terminal and run `go version`. Check that it is at least 1.27.3.
+   An older 1.27 toolchain also works: Go downloads the version named in
+   Terradune's `go.mod` on first use.
 
 ### Install Terradune
 
@@ -46,8 +87,9 @@ Terradune requires **Go 1.27.1 or newer** and a separate
 go install github.com/albatroxxx/terradune@latest
 ```
 
-Go is the sole supported installation method. Use `@v1.0.6` instead of
-`@latest` to pin this release.
+Go is the sole supported installation method. Use `@v1.0.7` instead of
+`@latest` to pin this release. Every published version is recorded by Go's
+module proxy and checksum database and verified on install.
 
 Add Go's executable directory to your PATH. On macOS/Linux, for the current
 terminal:
@@ -72,7 +114,7 @@ For future Windows terminals, add that directory to your user **Path** in
 Environment Variables. Go uses `GOBIN` when set, otherwise `GOPATH/bin`;
 see [Go's installation behavior](https://go.dev/doc/code#Command).
 
-### Review A Workspace
+### Review a workspace
 
 ```sh
 terraform -chdir=./infra init
@@ -80,13 +122,9 @@ terradune ./infra
 ```
 
 Replace `./infra` with your Terraform working directory. On an OpenTofu-only
-machine, initialize with `tofu -chdir=./infra init`. Terradune uses
-`terraform` when installed and falls back to `tofu`; the workspace header
-names the CLI that produced the plan.
-
-Open the printed local URL, normally `http://localhost:8383`. Provider
-credentials and inputs work as they do with your CLI, including AWS profiles,
-SSO, and environment variables.
+machine, initialize with `tofu -chdir=./infra init`. Open the printed local
+URL, normally `http://localhost:8383`. Provider credentials and inputs work as
+they do with your CLI, including AWS profiles, SSO, and environment variables.
 
 ```sh
 # Scan initialized workspaces beneath a directory.
@@ -100,11 +138,12 @@ terradune -port 8484 ./infra
 ```
 
 Terradune never runs `terraform apply`. It runs `plan`, `show`, and
-`graph`; planning can contact providers and data sources. Refresh is off by
-default. The server binds to loopback. There is no authentication or TLS;
-keep it local.
+`graph`; planning can contact providers and data sources, and runs whatever
+code the configuration's providers run, so review only projects you would plan
+yourself. Refresh is off by default. The server binds to loopback and has no
+authentication or TLS; keep it local.
 
-## Update Or Remove
+## Update or remove
 
 Stop Terradune with Ctrl+C before updating, then run:
 
@@ -118,7 +157,7 @@ To remove it, delete `terradune` (or `terradune.exe` on Windows) from
 Terraform working directories and state files intact. Terradune keeps no
 persistent state of its own; temporary plan directories are cleaned up.
 
-## Three Views, One Plan
+## Three views, one plan
 
 ### Resource Map
 
@@ -144,6 +183,11 @@ Open the relationship action on a resource for its direct dependency neighborhoo
 
 Zoom and fit controls are available above the graph. Graph nodes can be focused and opened with Enter or Space. With the graph focused, arrow keys pan, `+`/`-` zoom, and `0` fits the graph.
 
+Every control is named by what it shows, so keyboard, screen-reader and
+voice-control users get the same words a sighted user reads. The browser
+suite checks each view against WCAG 2.1 A/AA rules in Chromium, Firefox and
+WebKit on every change.
+
 ## Coverage
 
 | Area | Current behavior |
@@ -166,30 +210,72 @@ Terradune does not invent an instance-level relationship when a plan cannot iden
 | Flag | Default | Purpose |
 | --- | --- | --- |
 | `-port` | `8383` | Local HTTP port |
-| `-host` | `127.0.0.1` or `TERRADUNE_HOST` | Listen IP or localhost |
+| `-host` | `127.0.0.1` or `TERRADUNE_HOST` | Listen IP or localhost. Anything but loopback publishes the plan with no authentication |
 | `-var-file` | none | Terraform variable file; repeatable |
 | `-var` | none | Terraform `name=value` input; repeatable |
 | `-refresh` | `false` | Refresh state before planning |
 | `-print` | `false` | Print inventory and dependencies once, without serving |
 | `-version` | false | Print the version and exit |
 
-## Architecture
+## How it works
 
 ```text
-Terraform plan / show / graph
-             |
-           ingest           workspace discovery and plan execution
-             |
-           graph            resource identity, dependencies, metadata, details
-             |
-           server           localhost JSON endpoints and SSE snapshots
-             |
-    Resource Map / Plan / Graph
+ terraform / tofu  plan · show -json · graph        (never apply)
+          │
+        ingest      discover initialized workspaces, run the CLI, read the plan
+          │
+        graph       resource identity, dependencies, metadata, masked details
+          │
+        server      loopback HTTP: /state, /resource, /events (SSE)
+          │         Host allowlist · GET/HEAD only · Content-Security-Policy
+          ▼
+  Resource Map  ·  Plan  ·  Graph        one embedded page, no build step, no CDN
 ```
 
-`internal/watch` observes Terraform source edits. The browser, fonts, logo, service glyphs, and ELK engine are embedded in the Go binary; the UI needs no CDN or JavaScript build step. The new review surface is separated into `assets/review.js` and `assets/review.css`.
+One Go process: `internal/ingest` runs the CLI once per workspace, bounded and
+coalesced by a per-workspace scheduler; `internal/graph` derives nodes, edges
+and sanitized details from the plan JSON and Terraform's DOT graph;
+`internal/server` holds the latest snapshot and streams it to the browser;
+`internal/watch` triggers replans on source edits. The page, fonts, logo,
+service glyphs and the ELK layout engine are embedded in the binary.
 
-Service glyphs are project-authored category icons, not official AWS architecture icons. The Terradune mark combines stacked terrain with connected nodes and is shared by the app, favicon, and this README.
+Service glyphs are project-authored category icons, not official AWS
+architecture icons. The Terradune mark combines stacked terrain with
+connected nodes and is shared by the app, favicon, and this README.
+
+## Documentation
+
+| Where | What it covers |
+|---|---|
+| [Install](https://albatroxxx.github.io/terradune/docs/) | Go setup on macOS, Linux and Windows, credentials, reviewing a plan, updating |
+| [Release notes](https://albatroxxx.github.io/terradune/releases/) | What changed in each version; the same notes are under [docs/releases/](docs/releases/) |
+| [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) | Trust boundaries, what is defended against, what is not |
+| [docs/SECURITY-SIGNALS.md](docs/SECURITY-SIGNALS.md) | What each badge above measures, and its limits |
+| [docs/TESTING.md](docs/TESTING.md) | The test suites, coverage floors, fuzz targets and how to run them |
+| [docs/CI.md](docs/CI.md) | Which checks each kind of change selects, the merge gate, pinned tools |
+| [docs/MAKEOVER.md](docs/MAKEOVER.md) | Product direction, the coverage matrix and acceptance criteria |
+| [docs/V1-FOLLOW-THROUGH.md](docs/V1-FOLLOW-THROUGH.md) | The ordered follow-through list after v1 |
+| [docs/RELEASING.md](docs/RELEASING.md) | How a release is prepared, published and verified |
+
+## Quality and security signals
+
+Every badge at the top is computed from this repository by a tool anyone can
+run, and links to its evidence. None is an audit; [SECURITY-SIGNALS.md](docs/SECURITY-SIGNALS.md)
+says what each one cannot tell you.
+
+| Badge | What it measures | Source |
+|---|---|---|
+| CI | Go build, vet, gofmt, race tests with an 85% per-package coverage floor on Linux, macOS and Windows; real Terraform and OpenTofu plans on all three; the embedded interface in Chromium, Firefox and WebKit with axe-core WCAG 2.1 A/AA checks; fuzz targets; gosec, staticcheck, govulncheck and Semgrep; website layout and accessibility | [`ci.yml`](.github/workflows/ci.yml), [CI.md](docs/CI.md) |
+| CodeQL | Static analysis of the Go server, the JavaScript interface, the Python tooling and the workflows with the `security-extended` queries; alerts appear in the Security tab. The badge reports that analysis ran, not that it found nothing | [`codeql.yml`](.github/workflows/codeql.yml) |
+| OpenSSF Scorecard | Supply-chain hygiene scored 0 to 10 by the [OpenSSF](https://scorecard.dev): pinned dependencies, token permissions, SAST, fuzzing, known vulnerabilities, and more; the report names each check | [`scorecard.yml`](.github/workflows/scorecard.yml) |
+| OpenSSF Best Practices | The [OpenSSF Best Practices](https://www.bestpractices.dev/) criteria: documented contribution and vulnerability-reporting processes, tests and CI, static and dynamic analysis, secure delivery. Evidence-backed self-certification, answers public | [project 15009](https://www.bestpractices.dev/projects/15009) |
+| Go version | Read from `go.mod`: the toolchain every release is built with, which is how standard-library fixes reach a `go install` tool | shields.io |
+
+Plan files may contain sensitive data. Inventory metadata and details apply
+Terraform's sensitivity masks, including nested values. Unmarked secrets and
+provider diagnostics cannot be identified automatically. Keep Terradune on
+localhost and use synthetic plans when publishing screenshots. See
+[SECURITY.md](SECURITY.md) and the [threat model](docs/THREAT-MODEL.md).
 
 ## Development
 
@@ -211,32 +297,27 @@ go run . examples/platform
 
 The last three include **synthetic** applied state generated by `examples/tools/fakeapply.py`; they are not snapshots of a real AWS account. Some providers still contact AWS during planning, even with refresh disabled.
 
-## Testing And Security
-
-Contributors can enable fast staged-file checks with [pre-commit](docs/CONTRIBUTING.md#pre-commit-checks).
-The hooks check syntax, Go formatting, private-key markers, and website metadata;
-they do not run Terraform, contact AWS, or replace the full CI suite.
-
 ```sh
 go test ./...
 go test -race ./...
 go vet ./...
 ```
 
-Frontend behavior checks execute the real scripts against plan fixtures using JavaScriptCore or Node.js. CI installs Node and fails if no JS runtime is available, so frontend checks are not silently skipped on Linux. Browser verification and before/after screenshots are recorded in the [review report](docs/review/README.md).
+Frontend behavior checks execute the real scripts against plan fixtures using
+JavaScriptCore or Node.js, and the Playwright suite drives the embedded
+interface in three browser engines; see [docs/TESTING.md](docs/TESTING.md).
+Contributors can enable fast staged-file checks with
+[pre-commit](docs/CHECKS.md#pre-commit-checks). [CONTRIBUTING.md](CONTRIBUTING.md)
+has the full local gate, the conventions, and what a pull request must carry.
+Browser verification and before/after screenshots are recorded in the
+[review report](docs/review/README.md).
 
-CI also runs `gosec`, `staticcheck`, `govulncheck`, and Semgrep. Passing local unit tests is not a substitute for those scans. See [the workflow](.github/workflows/ci.yml) and [CI selection policy](docs/CI.md) for the checks selected by each kind of change.
-
-Plan files may contain sensitive data. Inventory metadata and details apply Terraform's sensitivity masks, including nested values. Unmarked secrets and provider diagnostics cannot be identified automatically. Keep Terradune on localhost and use synthetic plans when publishing screenshots. See [SECURITY.md](SECURITY.md).
-
-CI verifies Go installation on Linux, macOS, and Windows, plus real Terraform and OpenTofu planning. A per-workspace scheduler serializes plans and coalesces edits; slow SSE consumers receive the latest snapshot. Release checks and publication gates are documented in the [release runbook](docs/RELEASING.md).
-
-## Reporting A Bug
+## Reporting a bug
 
 Open a [bug report](https://github.com/albatroxxx/terradune/issues/new?template=bug_report.yml).
 The form asks for what makes one actionable: the version, how it was installed,
 whether it is driving Terraform or OpenTofu, which view, and steps someone else
-can follow.
+can follow. Ideas go in a [feature request](https://github.com/albatroxxx/terradune/issues/new?template=feature_request.yml).
 
 **A vulnerability is not a bug report.** Report it
 [privately](https://github.com/albatroxxx/terradune/security/advisories/new)
@@ -251,13 +332,30 @@ state, so a reproduction never needs a real account.
 
 Terradune masks values Terraform marks sensitive. It does not mask unmarked
 secrets, resource addresses, IP ranges, account identifiers, file paths, or
-provider diagnostics. Read whatever you attach — `terradune -print` output,
-terminal logs, screenshots — before posting it.
+provider diagnostics. Read whatever you attach, `terradune -print` output,
+terminal logs, screenshots, before posting it.
 
 ## Contributing
 
-Start with the [makeover plan](docs/MAKEOVER.md) and [prioritized review findings](docs/review/README.md). Add fixtures for new Terraform lifecycle behavior and preserve generic rendering for unfamiliar resource types. Changes should pass tests, formatting, and CI scans.
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) has the
+development setup, the checks that must pass before a pull request, and the
+conventions: every interpolated value escaped, controls named by their visible
+text, a test with every change and a regression test with every fix. How the
+project is run is in [GOVERNANCE.md](GOVERNANCE.md); everyone taking part
+follows the [code of conduct](CODE_OF_CONDUCT.md). Start with the
+[makeover plan](docs/MAKEOVER.md) and the
+[prioritized review findings](docs/review/README.md); add fixtures for new
+Terraform lifecycle behavior and preserve generic rendering for unfamiliar
+resource types.
+
+## Security
+
+Terradune reads plans that contain secrets. [SECURITY.md](SECURITY.md) says
+how to report a vulnerability privately and what counts as one; never open a
+public issue for it. The [threat model](docs/THREAT-MODEL.md) describes what
+Terradune defends against and what it does not.
 
 ## License
 
-Terradune is Apache License 2.0. See [LICENSE](LICENSE). Bundled fonts and the layout engine have [their own notices](internal/server/assets/THIRD-PARTY.md).
+Terradune is Apache License 2.0. See [LICENSE](LICENSE). Bundled fonts, icons
+and the layout engine have [their own notices](internal/server/assets/THIRD-PARTY.md).

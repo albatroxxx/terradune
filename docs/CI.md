@@ -18,10 +18,23 @@ conclusion, including when some expensive jobs are intentionally skipped.
 Selection/source-check tests, fast pre-commit hooks, Semgrep
 (Go/JavaScript/secrets rules), and the final gate run for every change.
 The fast hooks do not install Go; formatting remains in the Go matrix.
-See [contributor checks](CONTRIBUTING.md) for local setup and hook coverage.
+See [contributor checks](CHECKS.md) for local setup and hook coverage.
 Mixed changes select the union of their checks. Go security
 includes gosec, staticcheck, and govulncheck; gosec runs once and produces SARIF
 while still failing on findings. Optional SARIF upload is not the security gate.
+The Go matrix also runs every fuzz target for ten seconds on Linux
+(`scripts/fuzz.py`), after the seeds ran as ordinary tests.
+
+## Pinned Tools
+
+Every `uses:` names a commit, with the version beside it, so a new action
+release cannot change what CI runs without a reviewed pull request. The three
+Go scanners are installed the same way, `go install …@<commit>` with the
+release's version in a comment, and the Semgrep container is pinned by digest.
+Dependabot proposes action updates in one grouped pull request a week; it does
+not follow the scanner commits or the container digest, so bump those by hand:
+run the new version locally against the module, then change the hash and the
+comment together. The pins are listed in the workflow files themselves.
 
 Pull requests use the merge base of the PR base and head; pushes use the full
 before/after range. Renames select both old and new paths, deletions count, and

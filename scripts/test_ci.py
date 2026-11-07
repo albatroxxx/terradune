@@ -23,6 +23,11 @@ class SelectionTests(unittest.TestCase):
 
     def test_docs_only(self):
         self.assertEqual(self.selected(["README.md", "docs/CI.md"]), set())
+        for path in ("CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "GOVERNANCE.md",
+                     ".github/pull_request_template.md", ".github/ISSUE_TEMPLATE/feature_request.yml",
+                     "docs/THREAT-MODEL.md"):
+            with self.subTest(path=path):
+                self.assertEqual(self.selected([path]), set())
 
     def test_embedded_assets_need_go_but_not_cli(self):
         for path in ("internal/server/index.html", "internal/server/assets/review.js",

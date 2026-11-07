@@ -68,6 +68,26 @@ TERRADUNE_TEST_CLI="$(command -v terraform)" go test -race -count=1 -run TestCLI
 TERRADUNE_TEST_CLI="$(command -v tofu)" go test -race -count=1 -run TestCLIIntegration ./internal/ingest
 ```
 
+## Fuzzing
+
+The parsers that read Terraform's output and the server's two untrusted
+inputs have Go native fuzz targets beside their tests:
+
+| Target | Package | What it checks |
+| --- | --- | --- |
+| `FuzzDependenciesFromDOT` | `internal/graph` | Any DOT text yields dependencies with non-empty addresses, or none; never a panic |
+| `FuzzBuildFromPlan` | `internal/graph` | Any plan JSON that parses builds a graph, prints, and yields details without a panic or an empty address |
+| `FuzzOwner` | `internal/ingest` | A path is owned by the deepest workspace containing it, and by nothing otherwise |
+| `FuzzListenAddress` | root | A bound address is `localhost` or an IP literal with an in-range port, or an error |
+| `FuzzHostHeader` | `internal/server` | Only `localhost` and IP literals are served; everything else is 403 |
+| `FuzzResourceQuery` | `internal/server` | Known workspace and address pairs return JSON, unknown ones 404, nothing else |
+
+`go test` runs each target's seed corpus as an ordinary test. CI runs
+`python3 scripts/fuzz.py --fuzztime 10s` on Linux, which discovers every
+`func Fuzz…(f *testing.F)` and mutates it for ten seconds; run it longer
+locally when touching a parser. A crash becomes a committed test case in the
+package's `testdata/fuzz/` directory, which Go replays forever after.
+
 ## Remaining Limits
 
 Broad coverage is not exhaustive coverage. Rare OS/filesystem failures,
@@ -75,8 +95,9 @@ process-exit paths, every Terraform/provider input combination, and every
 browser/assistive-technology combination are not covered. Go statement
 coverage does not measure how many branches or input fields were tested;
 the behavior map above supplies additional evidence without inventing a
-branch-coverage percentage. Manual screen-reader and high-zoom checks,
-additional real-world plan fixtures, and fuzzing remain useful follow-ups.
+branch-coverage percentage. Manual screen-reader and high-zoom checks and
+additional real-world plan fixtures remain useful follow-ups; fuzzing runs
+for seconds in CI, not hours.
 
 When adding behavior, extend the corresponding success, failure, and boundary
 tests. Do not remove statements from coverage, add unasserted calls, weaken

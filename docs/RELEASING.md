@@ -2,7 +2,7 @@
 
 ## Stable Contract
 
-Terradune is installed with `go install` from a stable tag. Go 1.27.1 or
+Terradune is installed with `go install` from a stable tag. Go 1.27.3 or
 newer and a separate Terraform or OpenTofu CLI are required. The CLI flags
 and documented local workflow are the v1 compatibility surface. The internal
 JSON/SSE API is not a versioned public API.

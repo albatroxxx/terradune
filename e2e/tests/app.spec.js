@@ -67,7 +67,7 @@ test('plan resource types remain separate and map endpoints are circles', async 
   await page.locator('#service-nav [data-service=""]').click();
   await page.screenshot({ path: testInfo.outputPath('plan-resource-types.png') });
   await page.getByRole('tab', { name: 'Resource Map', exact: true }).click();
-  await page.getByRole('button', { name: 'Pin path: platform-public-us-east-1a, Subnet, existing', exact: true }).click();
+  await page.getByRole('button', { name: /^platform-public-us-east-1a\b/ }).click();
   const direct = page.locator('#ribbons path[data-from="aws_vpc.main"][data-to="aws_subnet.public[0]"]');
   const indirect = page.locator('#ribbons path[data-from="aws_subnet.public[0]"][data-to="aws_route_table.public"]');
   await expect(direct).toHaveAttribute('marker-end', 'url(#map-direct)');
@@ -100,7 +100,7 @@ test('legend and pinned map path unwind one layer per Escape', async ({ page }) 
 test('single click preserves cards and double click keeps dependency sections', async ({page}, testInfo) => {
   const cards = page.locator('#map .card');
   const count = await cards.count();
-  const pin = page.getByRole('button', {name: 'Pin path: platform-public-us-east-1a, Subnet, existing', exact: true});
+  const pin = page.getByRole('button', {name: /^platform-public-us-east-1a\b/});
   await pin.click();
   await expect(cards).toHaveCount(count);
   await expect(page.locator('#map')).not.toHaveClass(/focused/);
@@ -214,6 +214,67 @@ for (const view of ['Resource Map', 'Plan', 'Graph']) {
     expect(result.violations).toEqual([]);
   });
 }
+
+test('map cards and graph nodes take their names from their visible text', async ({ page }) => {
+  // WCAG 2.5.3: what a control shows is what it is called, so a voice-control
+  // user can say the words on the card. The pin hint is read after the name.
+  const card = page.locator('[data-id="aws_subnet.public[0]"] > .card-main');
+  const shown = await card.evaluate(el => el.textContent.replace(/\s+/g, ' ').trim());
+  expect(shown).toMatch(/^platform-public-us-east-1a Subnet /);
+  expect(shown).toMatch(/ existing, pin path$/);
+  // Engines space block boundaries differently when computing the name, so the
+  // check is on what matters: the visible words first, the status, the hint last.
+  await expect(card).toHaveAccessibleName(/^platform-public-us-east-1a\s+Subnet\b[\s\S]*\bexisting\s*,\s*pin path$/);
+  await expect(card).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('tab', { name: 'Graph', exact: true }).click();
+  await graphReady(page);
+  const node = page.locator('.graph-node').filter({ hasText: 'aws_instance' }).first();
+  const lines = await node.locator('text').allTextContents();
+  expect(lines).toHaveLength(3);
+  await expect(node).toHaveAccessibleName(lines.join(' '));
+  await expect(node).toHaveAccessibleDescription(/^aws_instance\.[a-z]+ in workspace platform$/);
+});
+
+test('every view runs under the Content-Security-Policy without a violation', async ({ page, request, browserName }) => {
+  // The event names the directive and the offending source; the console does not.
+  await page.addInitScript(() => {
+    window.__csp = [];
+    document.addEventListener('securitypolicyviolation', e => window.__csp.push(
+      { directive: e.violatedDirective, blocked: e.blockedURI, sample: e.sample, line: e.lineNumber }));
+  });
+  const errors = [];
+  page.on('pageerror', err => errors.push(String(err)));
+  await page.reload();
+  await expect(page.locator('#meta')).toContainText('35 resources');
+  const response = await request.get('/');
+  expect(response.headers()['content-security-policy']).toMatch(/^default-src 'none'; script-src 'self' 'sha256-/);
+  expect(response.headers()['content-security-policy']).not.toMatch(/unsafe-inline|unsafe-eval/);
+  await page.getByRole('button', { name: 'Legend', exact: true }).click();
+  await page.locator('[data-id="aws_instance.api"] > .card-main').first().click();
+  await page.locator('[data-id="aws_instance.api"] > .card-detail').first().click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Configuration', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('tab', { name: 'Plan', exact: true }).click();
+  await expect(page.locator('#review-count')).toHaveText('35 of 35 resources');
+  await page.locator('.resource-open').first().click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('tab', { name: 'Graph', exact: true }).click();
+  await graphReady(page);
+  await page.getByRole('button', { name: 'Fit graph', exact: true }).click();
+  await page.waitForTimeout(200);
+  let violations = await page.evaluate(() => window.__csp);
+  if (browserName === 'webkit') {
+    // WebKit's own <select> rendering applies an internal inline style and
+    // reports it against the page as style-src-attr, with no sample: the DOM
+    // carries no style attribute and Chromium reports nothing.
+    // Everything else, a script or a real style, still fails here.
+    violations = violations.filter(v => !(v.directive === 'style-src-attr' && v.sample === ''));
+  }
+  expect(violations).toEqual([]);
+  expect(errors).toEqual([]);
+});
 
 test('resource dialog has no automated WCAG A/AA violations', async ({ page }, testInfo) => {
   await page.getByRole('tab', { name: 'Plan', exact: true }).click();

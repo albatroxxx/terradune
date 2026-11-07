@@ -207,6 +207,12 @@
   .dr-head { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px;
              border-bottom: 1px solid var(--line); }
   .dr-head .ico { width: 26px; height: 26px; flex: none; margin-top: 1px; }
+  .dr-text { min-width: 0; }
+  .dr-pill-row { margin-top: 5px; }
+  .tally { display: flex; gap: 5px; }
+  .rel-status { margin-left: auto; }
+  .rel-sum { margin-bottom: 6px; }
+  .sec-count { color: var(--faint); }
   .dr-head h2 { margin: 0; font-size: 14.5px; font-weight: 700; overflow-wrap: anywhere; }
   .dr-head .addr { color: var(--muted); font-family: var(--mono); font-size: 11px;
                    overflow-wrap: anywhere; }
@@ -369,10 +375,10 @@
 <dialog id="drawer" aria-labelledby="dr-title">
   <div class="dr-head">
     <span class="ico" id="dr-ico"></span>
-    <div style="min-width:0">
+    <div class="dr-text">
       <h2 id="dr-title"></h2>
       <div class="addr" id="dr-addr"></div>
-      <div style="margin-top:5px"><span class="pill" id="dr-pill"></span></div>
+      <div class="dr-pill-row"><span class="pill" id="dr-pill"></span></div>
     </div>
     <button id="dr-close" type="button" aria-label="Close details" title="Close details" autofocus>&times;</button>
   </div>
@@ -978,13 +984,11 @@ function cardHTML(n, detail, nested, inventory = false) {
   if (!inventory && n.type !== 'aws_subnet' && nice !== shortRef(n)) det = det ? det + ' · ' + shortRef(n) : shortRef(n);
   return `<div class="card ${n.status}" data-id="${esc(n.id)}" data-ws="${esc(RENDER_WS)}"
       ${inventory ? 'data-inventory="true"' : ''} title="${esc(n.id)}">
-    <button type="button" class="card-main" aria-pressed="false"
-      aria-label="${esc(`Pin path: ${nice}, ${label(n.type)}, ${n.status}${changeNote ? ', ' + changeNote : ''}`)}">
+    <button type="button" class="card-main" aria-pressed="false">
       <span class="ico">${iconSVG(n.type)}</span>
       <span class="n">${esc(nice)}</span>
       <span class="d"><span>${esc(label(n.type))}${det ? ' · ' + esc(det) : ''}</span>
-        <span class="st">${esc(n.status)}</span></span>
-      ${changeNote ? `<span class="attached-change-note">${esc(changeNote)}</span>` : ''}
+        <span class="st">${esc(n.status)}</span></span>${changeNote ? ` <span class="attached-change-note">${esc(changeNote)}</span>` : ''}<span class="sr-only">, pin path</span>
     </button>
     <button type="button" class="card-detail" aria-label="${esc(`View details for ${n.id}`)}"
       title="View details">&#9432;</button>
@@ -1127,7 +1131,7 @@ function summaryHTML(nodes) {
   for (const n of nodes || []) counts[n.status] = (counts[n.status] || 0) + 1;
   const parts = STATUSES.filter(s => counts[s]).map(s =>
     `<span class="pill ${s}">${counts[s]} ${s}</span>`);
-  return parts.length ? `<span style="display:flex;gap:5px">${parts.join('')}</span>` : '';
+  return parts.length ? `<span class="tally">${parts.join('')}</span>` : '';
 }
 
 // The tool that produced a plan, written the way its own project writes it.
@@ -1644,12 +1648,12 @@ function relatedHTML(r) {
     <summary>
       <span class="ico">${iconSVG(r.type)}</span>
       <span><b>${esc(label(r.type || '?'))}</b> ${esc(short)}</span>
-      <span class="pill ${esc(r.status)}" style="margin-left:auto">${esc(r.status || '')}</span>
+      <span class="pill rel-status ${esc(r.status)}">${esc(r.status || '')}</span>
     </summary>
     <div class="inner">
       ${CHANGED.has(r.status) ? `<h4>What changes</h4>${changeRows(r)}` : ''}
       ${summarize(r.type, values, r.unknown)
-        ? `<div class="sum" style="margin-bottom:6px">${esc(summarize(r.type, values, r.unknown))}</div>` : ''}
+        ? `<div class="sum rel-sum">${esc(summarize(r.type, values, r.unknown))}</div>` : ''}
       ${attrRows(values, r.status === 'update' || r.status === 'replace' ? r.before : null, r.unknown)}
     </div>
   </details>`;
@@ -1697,10 +1701,10 @@ async function openDetail(wsName, address, opener) {
   // associations, an instance's volume and target-group attachments.
   $('dr-body').innerHTML =
     sec('What changes', changeRows(d)) +
-    sec(`Attached <span style="color:var(--faint)">(${(d.attached || []).length})</span>`, rels(d.attached)) +
+    sec(`Attached <span class="sec-count">(${(d.attached || []).length})</span>`, rels(d.attached)) +
     sec('Configuration', attrRows(d.status === 'destroy' ? d.before : d.after,
       d.status === 'update' || d.status === 'replace' ? d.before : null, d.unknown)) +
-    sec(`Depends on <span style="color:var(--faint)">(${(d.dependsOn || []).length})</span>`, rels(d.dependsOn));
+    sec(`Depends on <span class="sec-count">(${(d.dependsOn || []).length})</span>`, rels(d.dependsOn));
 }
 
 function closeDetail() {
@@ -1906,7 +1910,7 @@ function drawGraph(layout) {
         pos.set(c.id, { x, y, w: c.width, h: c.height });
         const n = c.node, color = GRAPH_COLORS[n.status] || '#929cab';
         const group = el('g', {class: 'graph-node', role: 'button', tabindex: '0', 'data-key': c.id,
-          'aria-label': `${n.id}, ${ACTION_NAMES[n.status] || n.status}, ${c.workspace}`}, nodeLayer);
+          'aria-description': `${n.id} in workspace ${c.workspace}`}, nodeLayer);
         group.addEventListener('mousedown', e => e.stopPropagation());
         group.addEventListener('click', e => { e.stopPropagation(); openDetail(c.workspace, n.id, group); });
         group.addEventListener('keydown', e => {
@@ -1915,10 +1919,14 @@ function drawGraph(layout) {
         const box = el('rect', { class: 'node-box', x, y, width: c.width,
           height: c.height, rx: 6, stroke: color }, group);
         if (n.status === 'create') box.setAttribute('stroke-dasharray', '7 4');
+        // Whitespace between the lines keeps them apart in the node's name;
+        // SVG never draws text outside <text>, so nothing changes on screen.
         el('text', { class: 'node-type', x: x + PAD_X, y: y + 19, fill: color },
           group).textContent = displayName(n);
+        group.appendChild(document.createTextNode(' '));
         el('text', { class: 'node-name', x: x + PAD_X, y: y + 36 },
           group).textContent = n.type;
+        group.appendChild(document.createTextNode(' '));
         el('text', {class: 'node-name', x: x + PAD_X, y: y + 53}, group).textContent = ACTION_NAMES[n.status] || n.status;
       }
     }
